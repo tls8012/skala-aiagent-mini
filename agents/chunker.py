@@ -52,7 +52,7 @@ class EventChunker:
     def events(self, record: dict) -> list[EventDocument]:
         result = []
         for event in record['events']:
-            if event['type'] == 'Speech' and event.get('channel') != 'game':
+            if event['type'] == 'Speech' and event.get('channel') not in {'game', 'mixed'}:
                 continue
             # 사건 전체를 사용한다. 긴 발언과 결과 JSON도 자르거나 생략하지 않는다.
             text = json.dumps(event, ensure_ascii=False, sort_keys=True, separators=(',', ':'))

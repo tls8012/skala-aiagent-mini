@@ -9,7 +9,7 @@ from uuid import uuid4
 from .cards import Card, Deck
 from .config import GameConfig
 from .models import (AgentDecision, Bet, CommandResult, Observation, Player,
-                     PlayerCommand, safe_id)
+                     PlayerCommand, SpeechInterpretation, safe_id)
 from .round import Round
 
 
@@ -80,7 +80,8 @@ class Table:
     def _result(self, status: str, reason: str = '', rejudge: bool = False) -> CommandResult:
         return CommandResult(status=status, reason=reason, event_id=self.event_id, rejudge=rejudge)
 
-    def submit(self, player_id: str, command: PlayerCommand) -> CommandResult:
+    def submit(self, player_id: str, command: PlayerCommand, *,
+               interpretation: SpeechInterpretation | None = None) -> CommandResult:
         """호출자는 신뢰할 수 있는 참가자 ID를 지정한다. 같은 요청은 한 번만 적용."""
         with self._lock:
             if not isinstance(command, PlayerCommand):
@@ -91,11 +92,12 @@ class Table:
                 original, result = self._requests[key]
                 return result.model_copy() if original == fingerprint else self._result(
                     'rejected', 'request ID reused with a different payload')
-            result = self._submit(player_id, command)
+            result = self._submit(player_id, command, interpretation)
             self._requests[key] = (fingerprint, result.model_copy())
             return result
 
-    def _submit(self, pid: str, cmd: PlayerCommand) -> CommandResult:
+    def _submit(self, pid: str, cmd: PlayerCommand,
+                interpretation: SpeechInterpretation | None = None) -> CommandResult:
         r = self.round
         if r is None or r.phase != 'dialogue' or cmd.round_id != r.number:
             return self._result('rejected', 'round is not open')
@@ -104,16 +106,27 @@ class Table:
         if cmd.basis_event > self.event_id:
             return self._result('rejected', 'future event ID')
         c = r.conversation
+        if interpretation is not None:
+            if self.players[pid].kind != 'human' or cmd.kind != 'speak':
+                return self._result('rejected', 'interpretation is only for human speech')
+            try:
+                interpretation = SpeechInterpretation.model_validate(interpretation)
+                interpretation.validate_source(cmd.text, {p for p in r.order if self.players[p].kind == 'ai'})
+            except ValueError as error:
+                return self._result('rejected', str(error))
+            cmd = cmd.model_copy(update={'channel': 'game' if interpretation.has_game else 'chat'})
         if cmd.kind == 'speak':
-            reason = self._speech_error(pid, cmd)
+            reason = self._speech_error(pid, cmd, interpretation)
             if reason:
                 return self._result('rejected', reason)
             if c.last_speaker == pid:
                 if pid in c.deferred:
                     return self._result('rejected', 'already has a deferred speech')
                 c.deferred[pid] = cmd
+                if interpretation:
+                    c.deferred_interpretations[pid] = interpretation
                 return self._result('deferred', 'consecutive speech; revalidate after another speaker')
-            self._publish_speech(pid, cmd)
+            self._publish_speech(pid, cmd, interpretation)
         elif cmd.kind == 'silent':
             if cmd.basis_event != self.event_id:
                 return self._result('rejected', 'stale silence decision', True)
@@ -133,6 +146,7 @@ class Table:
             except ValueError as error:
                 return self._result('rejected', str(error))
             c.silent.clear()
+            c.deferred_interpretations.pop(pid, None)
             c.deferred.pop(pid, None)  # 베팅 이후 본인의 이전 발언은 자동 공개하지 않는다.
             self._emit('BetPlaced', player_id=pid, action=cmd.bet.action,
                        amount=increment, raise_size=cmd.bet.raise_size, contributions=dict(r.betting.contributions),
@@ -140,7 +154,8 @@ class Table:
         self._advance_failed()
         return self._result('accepted')
 
-    def _speech_error(self, pid: str, cmd: PlayerCommand) -> str:
+    def _speech_error(self, pid: str, cmd: PlayerCommand,
+                      interpretation: SpeechInterpretation | None = None) -> str:
         c = self.round.conversation
         if len(cmd.text) > self.config.max_message_chars:
             return 'message too long'
@@ -148,25 +163,40 @@ class Table:
             return 'speech limit exhausted'
         if cmd.target and (cmd.target not in self.round.order or cmd.target == pid):
             return 'invalid target'
-        if cmd.channel == 'chat':
+        if cmd.channel in {'chat', 'mixed'}:
             if self.players[pid].kind == 'human':
+                if cmd.channel == 'mixed':
+                    return 'human mixed speech must be interpreted by the runner'
                 needed = max(0, self.config.min_utterances - c.game_counts[pid])
                 if self.config.max_utterances - c.counts[pid] <= needed:
                     return 'reserve remaining speech slots for minimum game speech'
-                if not cmd.target or self.players[cmd.target].kind != 'ai' or cmd.reply_to:
+                if cmd.reply_to or (interpretation is None and (
+                        not cmd.target or self.players[cmd.target].kind != 'ai')):
                     return 'human chat must address an AI'
-            elif not cmd.reply_to or c.chat_replies.get(cmd.reply_to) != pid:
-                return 'AI chat requires an unanswered human request'
+            else:
+                if not cmd.reply_to or pid not in c.chat_replies.get(cmd.reply_to, set()):
+                    return 'AI chat requires an unanswered human request'
+                if cmd.target and cmd.target != c.chat_senders[cmd.reply_to]:
+                    return 'reply target does not match human sender'
+                if cmd.channel == 'mixed' and cmd.reply_to not in c.mixed_requests:
+                    return 'mixed reply requires a human request with game content'
         elif cmd.reply_to:
             return 'game speech cannot reply to a chat request'
         return ''
 
-    def _publish_speech(self, pid: str, cmd: PlayerCommand):
+    def _publish_speech(self, pid: str, cmd: PlayerCommand,
+                        interpretation: SpeechInterpretation | None = None):
+        extra = {'interpretation': interpretation.model_dump()} if interpretation else {}
         event = self._emit('Speech', player_id=pid, channel=cmd.channel,
-                           text=cmd.text, target=cmd.target, request_id=cmd.request_id)
-        self.round.conversation.add(pid, cmd, event['event_id'])
-        if cmd.channel == 'chat' and self.players[pid].kind == 'ai':
-            del self.round.conversation.chat_replies[cmd.reply_to]
+                           text=cmd.text, target=cmd.target, request_id=cmd.request_id, **extra)
+        c = self.round.conversation
+        c.add(pid, cmd, event['event_id'], interpretation)
+        if cmd.channel in {'chat', 'mixed'} and self.players[pid].kind == 'ai':
+            c.chat_replies[cmd.reply_to].discard(pid)
+            if not c.chat_replies[cmd.reply_to]:
+                del c.chat_replies[cmd.reply_to]
+                c.chat_senders.pop(cmd.reply_to, None)
+                c.mixed_requests.discard(cmd.reply_to)
 
     def release_deferred(self, pid: str, basis_event: int) -> CommandResult:
         """자동 노출하지 않는다. 호출자가 최신 상황에서 재확인한 뒤 명시적으로 해제."""
@@ -179,15 +209,19 @@ class Table:
                 return self._result('rejected', 'no deferred speech')
             if pid in r.betting.folded or self.players[pid].failed:
                 r.conversation.deferred.pop(pid)
+                r.conversation.deferred_interpretations.pop(pid, None)
                 return self._result('rejected', 'player cannot act')
-            reason = self._speech_error(pid, cmd)
+            interpretation = r.conversation.deferred_interpretations.get(pid)
+            reason = self._speech_error(pid, cmd, interpretation)
             if reason:
                 r.conversation.deferred.pop(pid)
+                r.conversation.deferred_interpretations.pop(pid, None)
                 return self._result('rejected', reason)
             if r.conversation.last_speaker == pid:
                 return self._result('deferred', 'another speaker is required')
             r.conversation.deferred.pop(pid)
-            self._publish_speech(pid, cmd)
+            r.conversation.deferred_interpretations.pop(pid, None)
+            self._publish_speech(pid, cmd, interpretation)
             self._advance_failed()
             return self._result('accepted')
 
@@ -196,6 +230,7 @@ class Table:
         with self._lock:
             if self.round:
                 self.round.conversation.deferred.pop(pid, None)
+                self.round.conversation.deferred_interpretations.pop(pid, None)
 
     def fail_agent(self, pid: str):
         with self._lock:
@@ -206,6 +241,7 @@ class Table:
             self.players[pid].failed = True
             if self.round and self.round.phase == 'dialogue' and pid in self.round.order:
                 self.round.conversation.deferred.pop(pid, None)
+                self.round.conversation.deferred_interpretations.pop(pid, None)
                 self._emit('AgentFailed', player_id=pid, message='나 죽었음')
                 self._advance_failed()
 

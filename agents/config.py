@@ -21,6 +21,10 @@ class GameConfig:
     long_memo_max_chars: int = 3000
     graph_max_attempts: int = 3
     runner_max_decisions: int = 120
+    router_model: str = 'qwen3.5:2b'
+    router_num_predict: int = 768
+    router_max_attempts: int = 2
+    router_timeout: float = 30.0
     ollama_model: str = 'qwen3:8b'
     ollama_think: bool | None = False
     ollama_num_predict: int = 512
@@ -41,7 +45,7 @@ class GameConfig:
                      'max_message_chars', 'round_memo_max_chars', 'game_memo_max_chars',
                      'long_memo_max_chars', 'embedding_context_tokens',
                      'embedding_chunk_max_bytes', 'embedding_batch_size', 'graph_max_attempts',
-                     'runner_max_decisions', 'ollama_num_predict'):
+                     'runner_max_decisions', 'ollama_num_predict', 'router_num_predict', 'router_max_attempts'):
             if type(getattr(self, name)) is not int or getattr(self, name) < 1:
                 raise ValueError(f'{name} must be a positive integer')
         if self.initial_chips < self.ante:
@@ -56,6 +60,8 @@ class GameConfig:
             raise ValueError('ollama_think must be bool or None')
         if self.ollama_usd_per_1k_tokens < 0 or not self.ollama_model.strip():
             raise ValueError('invalid Ollama model or token price')
+        if not self.router_model.strip() or self.router_timeout <= 0:
+            raise ValueError('invalid router model or timeout')
         if self.embedding_timeout <= 0:
             raise ValueError('embedding_timeout must be positive')
         object.__setattr__(self, 'data_dir', Path(self.data_dir))

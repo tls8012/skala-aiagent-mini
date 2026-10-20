@@ -18,7 +18,7 @@ import httpx
 from fastmcp import FastMCP
 from agents.config import GameConfig, load_mcp_config
 from agents.chunker import Chunk, EventChunker, EventDocument, SCHEMA_VERSION
-from agents.models import safe_id
+from agents.models import SpeechInterpretation, safe_id
 
 
 class GameTools:
@@ -107,7 +107,7 @@ class GameTools:
         events = record['events']
         allowed = {
             'RoundStarted': {'order', 'pot'},
-            'Speech': {'player_id', 'channel', 'text', 'target', 'request_id'},
+            'Speech': {'player_id', 'channel', 'text', 'target', 'request_id', 'interpretation'},
             'PlayerSilent': {'player_id'},
             'AgentFailed': {'player_id', 'message'},
             'BetPlaced': {'player_id', 'action', 'amount', 'raise_size', 'contributions', 'current_bet', 'pot', 'automatic'},
@@ -121,6 +121,9 @@ class GameTools:
                 raise ValueError('unknown or private event fields')
             if event['event_id'] <= last_id or event['round_id'] != record['round_id']:
                 raise ValueError('unordered events or mismatched round')
+            if kind == 'Speech' and 'interpretation' in event:
+                SpeechInterpretation.model_validate(event['interpretation']).validate_source(
+                    event['text'], set(events[0].get('order', [])))
             last_id = event['event_id']
             if kind == 'BetPlaced' and event['action'] == 'fold':
                 folded.add(event['player_id'])

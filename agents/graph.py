@@ -49,6 +49,9 @@ async def answer_node(state: AgentState, backend: PokerLLM) -> dict:
             result = await backend.summarize_round(observation, state.get('feedback', ''))
         elif state['route'] == 'chat':
             result = await backend.chat(observation, state['event'], state.get('feedback', ''))
+        elif state['route'] == 'mixed':
+            result = await backend.mixed(observation, state['event'], state.get('research', {}),
+                state.get('force_bet', False), state.get('feedback', ''))
         else:
             result = await backend.decide(observation, state.get('research', {}),
                 state.get('force_bet', False), state.get('feedback', ''))
@@ -79,13 +82,24 @@ async def validate_node(state: AgentState, backend: PokerLLM) -> dict:
                     or decision.target != state['event']['player_id'] or decision.bet is not None):
                 raise ValueError('chat must answer the addressed human request only')
         else:
-            if decision.channel != 'game':
+            if state['route'] == 'mixed':
+                if decision.speech != 'speak':
+                    raise ValueError('answer the addressed human request')
+                if (
+                        decision.channel not in {'mixed', 'chat'} or
+                        decision.reply_to != state['event']['request_id'] or
+                        decision.target != state['event']['player_id']):
+                    raise ValueError('mixed reaction must answer the original human request')
+            elif decision.channel != 'game':
                 raise ValueError('game reaction must not start a casual chat')
-            if decision.speech == 'speak' and not observation.can_speak:
+            game_speech = decision.speech == 'speak' and decision.channel != 'chat'
+            if game_speech and not observation.can_speak:
                 raise ValueError('cannot speak now; choose silent or unavailable')
             if (observation.required_game_utterances > 0 and observation.can_speak
-                    and decision.speech != 'speak'):
+                    and (decision.speech != 'speak' or decision.channel == 'chat')):
                 raise ValueError('one game utterance is required before betting')
+            if decision.bet and observation.required_game_utterances > 0:
+                raise ValueError('minimum game speech must be met before betting')
             if decision.bet and decision.bet.action not in observation.allowed_bets:
                 raise ValueError('bet is not allowed now')
             if decision.bet and decision.bet.action == 'raise' and decision.bet.raise_size not in observation.raise_options:
@@ -100,7 +114,7 @@ async def validate_node(state: AgentState, backend: PokerLLM) -> dict:
 
 
 async def remember_node(state: AgentState, backend: PokerLLM) -> dict:
-    if state['route'] in {'game', 'summary'}:
+    if state['route'] in {'game', 'mixed', 'summary'}:
         await backend.remember(Observation.model_validate(state['observation']),
                                AgentDecision.model_validate(state['decision']))
     return {}
@@ -116,7 +130,7 @@ def build_graph(backend: PokerLLM):
     graph.add_node('remember', partial(remember_node, backend=backend))
     graph.add_edge(START, 'route')
     graph.add_conditional_edges('route', lambda state: state['route'],
-                                {'chat': 'answer', 'summary': 'answer', 'game': 'research'})
+                                {'chat': 'answer', 'summary': 'answer', 'game': 'research', 'mixed': 'research'})
     graph.add_edge('research', 'answer')
     graph.add_edge('answer', 'validate')
     graph.add_conditional_edges('validate', lambda state: 'done' if state['valid'] else 'retry',

@@ -50,4 +50,5 @@ class Round:
                        'revealed_cards': {pid: card.to_dict() for pid, card in contenders.items()},
                        'eliminated': eliminated}
         self.conversation.deferred.clear()
+        self.conversation.deferred_interpretations.clear()
         return self.result

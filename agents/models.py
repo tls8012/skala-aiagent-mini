@@ -35,13 +35,38 @@ class Bet(Contract):
         return self
 
 
+class SpeechIntent(Contract):
+    kind: Literal['game', 'chat', 'private_request']
+    targets: list[str]
+    text: str = Field(min_length=1)
+
+
+class SpeechInterpretation(Contract):
+    """공개 원문에 대한 참고 해석. 권한이나 게임 행동을 부여하지 않는다."""
+    intents: list[SpeechIntent] = Field(min_length=1, max_length=16)
+
+    @property
+    def has_game(self) -> bool:
+        return any(intent.kind == 'game' for intent in self.intents)
+
+    def addressed_to(self, player_id: str) -> bool:
+        return any(intent.kind != 'game' and player_id in intent.targets for intent in self.intents)
+
+    def validate_source(self, text: str, ai_ids: set[str]):
+        for intent in self.intents:
+            if (not intent.text.strip() or intent.text not in text or not set(intent.targets) <= ai_ids
+                    or (intent.kind != 'game' and not intent.targets)):
+                raise ValueError('intent must quote the source and name existing AI players only')
+        return self
+
+
 class PlayerCommand(Contract):
     request_id: str = Field(min_length=1, max_length=128)
     round_id: int = Field(ge=1)
     basis_event: int = Field(ge=0)
     kind: Literal['speak', 'silent', 'bet']
     text: str = ''
-    channel: Literal['game', 'chat'] = 'game'
+    channel: Literal['game', 'chat', 'mixed'] = 'game'
     target: str | None = None
     reply_to: str | None = None
     bet: Bet | None = None
@@ -70,7 +95,7 @@ class AgentDecision(Contract):
     basis_event: int = Field(ge=0)
     speech: Literal['speak', 'silent', 'unavailable']
     text: str = ''
-    channel: Literal['game', 'chat'] = 'game'
+    channel: Literal['game', 'chat', 'mixed'] = 'game'
     target: str | None = None
     reply_to: str | None = None
     bet: Bet | None = None
@@ -85,6 +110,8 @@ class AgentDecision(Contract):
             raise ValueError('only speak may carry chat routing fields')
         if self.channel == 'chat' and self.bet is not None:
             raise ValueError('chat reply must not carry a game bet')
+        if self.channel == 'mixed' and (not self.target or not self.reply_to):
+            raise ValueError('mixed reply requires target and reply_to')
         if self.bet is not None and self.wait_for_dialogue:
             raise ValueError('cannot bet and wait at once')
         return self

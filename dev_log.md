@@ -879,3 +879,148 @@ Bet(action='call')  # check/call/fold에는 raise_size 없음(null)
   사라지고 콜/공개로 종료됨을 실행기와 그래프를 연결하여 확인했다.
 - 실제 로컬 `qwen3:8b`가 새 행동/크기 JSON 스키마를 처리하고 유효한 체크를 반환했다.
   이는 스키마 호환 검사이며 장기간 자율 플레이의 전략 품질 검사는 아니다.
+
+### 인간 입력과 복합 발언 처리
+
+인간과 AI의 게임 규칙은 동일하게 유지한다. 명령을 만드는 주체만 다르다.
+AI는 참가자별 그래프가 판단을 만들고, 인간은 서버가 확인한 참가자 ID와
+`PlayerCommand`를 실행기에 제출한다. HTTP/UI는 이번 변경에 포함하지 않는다.
+
+#### 실행기와 인간 입력
+
+`agents/runner.py`의 `RoundRunner`가 인간 명령과 AI 완료 결과를 한 `asyncio.Queue`에서
+접수 순서대로 처리한다. 같은 참가자의 그래프는 한 번에 하나만 실행하고,
+다른 참가자들의 판단 작업은 독립적으로 계속 실행한다. 인간 명령도 최종적으로
+`Table.submit()`에 전달하므로 베팅 순서·금액·발언 제한·중복 방지 규칙을 공유한다.
+
+서버에서 사용할 연결점:
+
+- `run_round(...)`: 백그라운드 task로 실행하고 완료 시 공개 결과를 반환한다.
+  이미 실행 중이면 두 번째 실행을 거부한다. 인간에게 그래프를 요구하지 않는다.
+- `started`: 라운드 시작/재개 및 최초 사건 전달이 끝나면 설정되는 `asyncio.Event`.
+  서버는 시작 task의 예외도 함께 감시해야 한다.
+- `submit_human(player_id, command)`: 명령을 큐에 넣고 `CommandResult`를 기다린다.
+  `player_id`는 웹 본문을 그대로 믿지 말고 서버의 참가자 연결에서 지정한다.
+  `accepted/rejected/deferred`, 사건 번호, 재판단 여부를 UI에 돌려주면 된다.
+- `release_human_speech(player_id, round_id, basis_event)`: 보류된 연속 발언을
+  인간이 최신 상황에서 다시 확인해 공개할 때 사용한다. 자동 공개하지 않는다.
+- `on_event(event)`: 확정된 공개 사건을 받는 동기 콜백. 서버가 구독자 큐에 전달한다.
+- `running`, `errors`, `interpretation_errors`: 실행 상태, AI 실패, 인간 발언 해석 실패 확인.
+- 실행 task 취소: 남은 그래프를 정리하고 대기 중인 인간 요청에도 거절 결과를 반환한다.
+  임의로 승패를 만들거나 인간을 자동 폴드시키지 않는다.
+
+인간의 최소 게임 발언 또는 베팅 입력을 기다리는 것은 정상 상태다.
+시간 경과를 침묵이나 자동 폴드로 해석하지 않는다. 발언 없음 선언도 베팅과 별개다.
+공개 이후 새 입력은 거부한다. 요청 ID 중복은 같은 결과를 반환하고,
+같은 ID에 다른 내용·지난 라운드 명령·오래된 베팅은 거부한다.
+재접속/서버 재시작 복원이나 다중 프로세스 간 테이블 공유는 추가하지 않았다.
+현재 실행기와 명령 제출은 같은 이벤트 루프에서 사용한다.
+
+#### 복합 발언을 한 번 해석
+
+새 `agents/speech_interpreter.py`의 `SpeechInterpreter.interpret()`가 인간의 발언을
+참가자별로 여러 번 분류하지 않고 접수 시 한 번 해석한다. 기존
+`agent.ollama_client.OllamaLLM`을 그대로 사용한다. 개인 메모·카드·MCP 도구는
+해석 모델에 전달하지 않고 공개 원문, 원문 구절, AI ID 목록과 명시 대상만 전달한다.
+
+`SpeechInterpretation`은 여러 `SpeechIntent`를 담는다.
+
+- `game`: 카드, 베팅, 동맹, 협상, 미래 보상 약속.
+- `chat`: 날씨, 인사 등 일반 대화.
+- `private_request`: 시스템 프롬프트, 개인 메모, 비공개 정보 요청.
+
+각 의도에는 `targets`와 원문 구절 `text`가 있다. 원문을 별도 발언으로 나누어
+공개하거나 횟수를 여러 번 차감하지 않는다. 문장부호/접속사 기준의 후보 구절은
+코드가 보존하고, 모델의 출력 문법에서는 실제 구절과 AI ID만 선택하게 한다.
+의미 분류와 호칭의 연결은 모델이 판단한다. 원문에 없는 인용, 존재하지 않는 대상,
+대상이 없는 일반 질문은 검증에서 거부한다. 형식 오류는 제한 횟수만 재시도한다.
+해석 자체가 실패하면 게임 상태를 바꾸지 않고 해당 요청을 거부한다.
+
+설정은 `GameConfig`의 `router_model='qwen3.5:2b'`, `router_num_predict=768`,
+`router_max_attempts=2`, `router_timeout=30.0`으로 관리한다. timeout은 시도별 상한이다.
+실제 시험에서 `qwen3:0.6b`는 복합 문장 전체를 game으로 뭉치는 경우가 있어
+기본값을 2b로 잡았다. 모델명은 교체할 수 있다. 참가자 판단 모델 설정은 별개다.
+
+#### 참가자별 전달과 응답
+
+원문과 공유 해석을 공개 `Speech` 사건과 `Conversation`의 최근 대화 기록에 붙인다.
+게임 내용이 하나라도 있으면 인간 발언 전체를 game으로 기록하여 최소 게임 발언에도
+포함한다. 잡담/비공개 요청만 있으면 chat이다. 인간의 발언 횟수는 어느 경우든 1회다.
+
+게임 발언은 발언자를 제외한 모든 활동 중 AI에게 전달한다. A/C에게 B 견제를
+제안해도 B까지 듣고 대응한다. 잡담·비공개 정보 요청은 해석에서 지정한 AI에게
+응답을 요청한다. 여러 대상이면 각자가 한 번씩 답할 수 있다.
+
+`RoundRunner`는 일반 게임 재판단의 계기는 최신 사건으로 합치되, 인간의 질문은
+참가자별 보관함에 순서대로 남긴다. 생각하는 동안 다음 질문이나 베팅 사건이 와도
+질문을 덮어쓰지 않는다. 다음 그래프 실행은 최신 `Table.observe()`를 받으므로
+현재 라운드의 최근 대화가 함께 들어간다. 자기 연속 답변은 다른 발언이 생길 때까지
+보관하고, 베팅 판단은 별도로 진행할 수 있다. 최소 게임 발언도 일반 답변에 묻혀
+빠지지 않도록 실행 우선순위와 mixed 검증에서 확인한다.
+
+`poker_llm.py`와 `graph.py`의 경로는 summary/chat/game/mixed다.
+라우터 자체는 공유 해석을 읽어 경로를 고르는 코드이고, 의미 해석은 이미 앞단의
+작은 LLM이 수행했다. mixed 경로는 원문·전체 대화·해석·게임 상태를 보고 응답한다.
+
+- 게임 내용도 답하면 `response_channel=mixed`: 공개 발언은 하나, 게임 발언 1회 차감.
+- 일반 질문에만 답하면 `response_channel=chat`: 게임 내용과 베팅을 넣지 않고
+  AI 게임 발언 횟수는 차감하지 않는다. 게임 발언을 소진했어도 이 답변은 가능하다.
+- 실제 반환 계약은 `AgentDecision.channel`과 서버가 붙이는 `target/reply_to`다.
+  모델은 요청 ID나 인간 참가자 ID를 만들어내지 않는다.
+
+개인 프롬프트/메모 공개 요청은 거절하고 날씨 확인 도구가 없음을 알리도록 프롬프트에
+명시했다. 상대의 미래 보상 약속은 공개 주장으로 참고할 뿐, 칩 이동이나 미래 베팅을
+예약하는 명령으로 실행하지 않는다. 실제 금액과 승패는 계속 엔진만 결정한다.
+
+#### 기존 인프라와 저장
+
+- 참가자 호출: `PokerLLM → PlayerLLM → agent/ollama_client.py` 유지.
+  참가자의 실제 호출에는 기존처럼 세 종류 개인 메모를 붙인다.
+- 도구 호출: `Table.call_player_tool() → agent/mcp_client.py` 유지.
+- `mcp_server.py`: 공개 Speech의 `interpretation` 필드를 허용하되,
+  Pydantic 계약·원문 인용·대상 ID를 재검사한다. 별도 도구나 DB는 추가하지 않았다.
+- `chunker.py`: mixed 응답도 게임 내용이므로 사건 단위 경험 색인에 포함한다.
+  일반 chat은 기존처럼 경험 색인에서 제외한다.
+- 연습용 graph/poker_llm 파일, 기존 두 클라이언트, `_old` 서버/웹 파일은 그대로 둔다.
+
+서버 조립 예시(기존 MCPClient를 poker 서버에 연결하고 설정 환경을 전달한 상태):
+
+```python
+from agents.player_llm import PlayerLLM
+from agents.poker_llm import PokerLLM
+from agents.graph import build_graph
+from agents.runner import RoundRunner
+from agents.models import PlayerCommand
+
+# table = Table(['A', 'B', 'C'], human_id='human', config=config)
+graphs = {
+    pid: build_graph(PokerLLM(table, mcp, pid, PlayerLLM(table, mcp, pid)))
+    for pid, player in table.players.items() if player.kind == 'ai'
+}
+runner = RoundRunner(table, graphs, on_event=publish_public_event)
+round_task = asyncio.create_task(runner.run_round(mcp=mcp))
+await runner.started.wait()
+
+view = table.observe('human')
+result = await runner.submit_human('human', PlayerCommand(
+    request_id='unique-request-id', round_id=view.round_id,
+    basis_event=view.event_id, kind='speak',
+    text='B야 날씨 좋지? C야 이번에는 A를 견제하자.',
+))
+# 베팅은 같은 메서드에 kind='bet', bet=Bet(...)로 제출한다.
+# 명시적 발언 없음은 kind='silent'. 이후 round_task가 공개 결과를 반환한다.
+```
+
+#### 검증 및 모델 품질의 범위
+
+`tests/test_poker_human.py`에서 외부 모델 없이 다음을 검사한다.
+인간 입력 대기 및 한 라운드 완료, AI 생각 중 인간 입력, 공유 해석 1회와 전체 전달,
+복합 답변 횟수 계산, 게임 발언 소진 후 일반 답변, 다중 수신자의 답변 권한,
+질문 보관과 최신 컨텍스트, 인간 보류 발언 재확인, 중복/지난 라운드/오래된 베팅 거절,
+해석 보정 재시도, 실패 시 무변경 거부, 종료/취소 시 대기 요청 정리.
+
+로컬 실제 모델에서도 qwen3.5:2b가 날씨/chat, 프롬프트/private_request,
+견제 제안/game을 서로 다른 대상으로 분리하고 qwen3:8b의 mixed 응답까지
+연결됨을 확인했다. 이 검사는 스키마와 전달 경로 검사다. 실제 응답에서 남의 약속을
+자기 약속처럼 말하는 주체 혼동도 관찰했다. 원문·발언자·본인 ID와 약속 주체 지침을
+전달하지만 자연어 판단 품질은 모델에 의존한다. 그런 문장이 실제 칩 이동을 일으키지는 않는다.

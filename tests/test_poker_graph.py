@@ -117,17 +117,22 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
         backend=PokerLLM(table,None,'A',llm)
         decision=await backend.decide(table.observe('A'),{})
         schema=llm.calls[-1]
-        self.assertEqual(set(schema['required']),{'speech','text','bet','wait_for_dialogue'})
+        self.assertEqual(set(schema['required']),{'speech','text','bet','wait_for_dialogue','memory_updates'})
         self.assertEqual(schema['properties']['speech']['enum'],['speak'])
         self.assertEqual(schema['properties']['bet'],{'type':'null'})
         self.assertTrue(decision.text)
+        # 실제 Ollama에서 큰 maxLength의 문법 초기화 오류가 재발하지 않게 한다.
+        import json
+        self.assertNotIn('maxLength',json.dumps(schema))
         for pid in ['A','B']:
             table.submit(pid,PlayerCommand(request_id=pid+'-speak',round_id=1,
                 basis_event=table.event_id,kind='speak',text='게임 발언'))
         llm.content='{"speech":"silent","text":"","bet":{"action":"check","amount":0},"wait_for_dialogue":false}'
         decision=await backend.decide(table.observe('A'),{},force_bet=True)
         self.assertEqual(decision.bet.action,'check')
-        self.assertEqual(llm.calls[-1]['properties']['bet'],{'$ref':'#/$defs/Bet'})
+        variants=llm.calls[-1].get('anyOf',[llm.calls[-1]])
+        self.assertTrue(all(v['properties']['bet']=={'$ref':'#/$defs/Bet'} for v in variants))
+        self.assertTrue(all(v['properties']['wait_for_dialogue']['enum']==[False] for v in variants))
         self.assertEqual(llm.calls[-1]['$defs']['Bet']['properties']['action']['enum'],['check','raise','fold'])
 
     def test_reused_transport_keeps_defaults_and_can_bound_thinking(self):

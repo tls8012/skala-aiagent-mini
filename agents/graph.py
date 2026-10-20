@@ -1,4 +1,4 @@
-"""참가자 그래프 스켈레톤. 이 파일에서 노드·분기·순서를 자유롭게 바꾼다.
+"""실행용 참가자 그래프. 직접 연습할 때는 graph_practice.py를 사용한다.
 
 같은 build_graph()를 참가자별 backend로 구성한다. 테이블이나 다른 참가자를 기다리는
 루프를 그래프 안에 넣지 않는다. 한 실행은 한 번의 반응 제안으로 끝난다.
@@ -45,7 +45,9 @@ async def answer_node(state: AgentState, backend: PokerLLM) -> dict:
     """LLM의 형식 오류는 검증 루프로, 통신 오류는 runner의 참가자 실패 처리로 전달."""
     observation = Observation.model_validate(state['observation'])
     try:
-        if state['route'] == 'chat':
+        if state['route'] == 'summary':
+            result = await backend.summarize_round(observation, state.get('feedback', ''))
+        elif state['route'] == 'chat':
             result = await backend.chat(observation, state['event'], state.get('feedback', ''))
         else:
             result = await backend.decide(observation, state.get('research', {}),
@@ -66,7 +68,13 @@ async def validate_node(state: AgentState, backend: PokerLLM) -> dict:
             raise ValueError('decision must refer to this observation')
         if len(decision.text) > backend.config.max_message_chars:
             raise ValueError('speech is too long')
-        if state['route'] == 'chat':
+        for scope, text in decision.memory_updates.model_dump().items():
+            if len(text) > backend.config.memo_limit(scope):
+                raise ValueError(f'{scope} memo is too long')
+        if state['route'] == 'summary':
+            if observation.phase != 'revealed' or decision.speech != 'unavailable' or decision.bet is not None:
+                raise ValueError('summary must only update memories after reveal')
+        elif state['route'] == 'chat':
             if (decision.channel != 'chat' or decision.reply_to != state['event']['request_id']
                     or decision.target != state['event']['player_id'] or decision.bet is not None):
                 raise ValueError('chat must answer the addressed human request only')
@@ -92,14 +100,14 @@ async def validate_node(state: AgentState, backend: PokerLLM) -> dict:
 
 
 async def remember_node(state: AgentState, backend: PokerLLM) -> dict:
-    if state['route'] == 'game':
+    if state['route'] in {'game', 'summary'}:
         await backend.remember(Observation.model_validate(state['observation']),
                                AgentDecision.model_validate(state['decision']))
     return {}
 
 
 def build_graph(backend: PokerLLM):
-    """편집 시작점: 노드 추가/삭제와 아래 edge를 바꾼다."""
+    """참가자별 업무 객체를 주입한 실행용 그래프를 구성한다."""
     graph = StateGraph(AgentState, input_schema=GraphInput, output_schema=GraphOutput)
     graph.add_node('route', partial(route_node, backend=backend))
     graph.add_node('research', partial(research_node, backend=backend))
@@ -108,7 +116,7 @@ def build_graph(backend: PokerLLM):
     graph.add_node('remember', partial(remember_node, backend=backend))
     graph.add_edge(START, 'route')
     graph.add_conditional_edges('route', lambda state: state['route'],
-                                {'chat': 'answer', 'game': 'research'})
+                                {'chat': 'answer', 'summary': 'answer', 'game': 'research'})
     graph.add_edge('research', 'answer')
     graph.add_edge('answer', 'validate')
     graph.add_conditional_edges('validate', lambda state: 'done' if state['valid'] else 'retry',

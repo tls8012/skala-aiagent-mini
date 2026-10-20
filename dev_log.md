@@ -720,3 +720,103 @@ speech/text/bet/wait_for_dialogue를 모두 필수로 만들었다. 관찰 정�
 실제 로컬 qwen3:8b + MCP로 AI 두 명이 발언·체크·공개까지 완료했다.
 추론 실패 참가자 없이 10회 판단 실행으로 한 라운드를 마쳤다. 실행 데이터는 임시 경로에만
 저장했다. 이 검증은 기본 배선·출력 계약의 확인이며 블러핑/대화 전략의 품질 보장은 아니다.
+
+### 연습용 분리와 실행용 그래프 완성
+
+#### 연습용 두 파일
+
+- `agents/graph_practice.py`: 상태 계약과 route/research/answer/validate/remember 노드,
+  build_graph 시그니처 및 TODO만 제공한다. 노드 구현과 edge 연결은 비어 있다.
+- `agents/poker_llm_practice.py`: `PokerLLMPractice`의 의존성 보관과 업무 메서드 시그니처,
+  입력·출력 설명만 제공한다. route/research/chat/decide/remember/summarize_round를 직접 작성한다.
+
+두 파일은 완성본 graph/poker_llm을 import하거나 상속하지 않는다. 구현되지 않은 메서드는
+NotImplementedError를 명시적으로 발생시키며 모델 생성·호출·MCP 요청을 하지 않는다.
+기본 demo도 이 파일들을 자동으로 사용하지 않는다. 연습이 끝난 후 본인의 조립 코드에서
+practice의 build_graph와 PokerLLMPractice를 함께 연결하면 된다.
+
+추천 연습 순서는 route → decide → graph 연결 → validate 재시도 → chat → research → 기억 갱신이다.
+공통 Pydantic 계약과 기존 PlayerLLM/MCP/Table은 그대로 재사용할 수 있다.
+
+#### 실행용 완성본
+
+`agents/graph.py`와 `agents/poker_llm.py`는 실행용으로 유지한다.
+기존 일반 채팅·게임 판단 외에 summary 경로와 실제 메모 저장을 추가하여 빈 remember를 채웠다.
+
+```text
+route
+  ├─ chat    → answer(chat) ───────────┐
+  ├─ game    → research → answer(decide) ┤→ validate → remember → END
+  └─ summary → answer(summarize_round) ┘       └─ 제한된 재시도 → answer
+```
+
+- route: 공개가 끝나면 summary, 인간이 명시적으로 지목한 channel=chat 요청은 chat,
+  나머지는 game이다. 아직 없는 HTTP/UI의 raw 발언 분류까지 대신 구현하지 않는다.
+- research: 최신 상대 게임 발언과 현재 베팅액으로 검색한다. Rejudge/BetTurn 사건에서도
+  관찰 정보의 최근 상대 발언을 활용한다. 같은 라운드·발언·베팅액의 ready 결과는 재사용하고,
+  indexing/unavailable 결과는 영구 캐시하지 않는다.
+- decide: 공개 행동 제안과 개인 메모 교체값을 별도로 생성한다. 발언·베팅 스키마는
+  현재 관찰 정보로 제한하고 개인 메모에도 scope별 길이 안내와 코드 검증을 적용한다.
+- summarize_round: 실제 공개 결과를 보고 단기 판단을 정정하고 중기 운영·장기 상대 대응을
+  회고한다. 새 발언이나 베팅을 반환하지 않으며 폴드 카드를 입력에 추가하지 않는다.
+- remember: 비어 있지 않은 메모 교체값만 기존 write_memo MCP 도구로 저장한다.
+  빈 문자열은 기존 메모 유지다. 라운드가 바뀌었거나 한도를 넘으면 저장하지 않고 오류를 낸다.
+
+`agents/models.py`의 `MemoryUpdate`는 round/game/long 문자열을 묶는다.
+`AgentDecision.memory_updates`는 개인 데이터이며 공개 발언 text와 별개다.
+Table은 행동과 공개 text만 적용하므로 메모는 공개 사건·라운드 JSON·RAG 경험에 포함되지 않는다.
+UI에는 그래프 출력 전체 대신 기존 Table 공개 이벤트를 전달해야 한다.
+
+게임 중 메모는 아직 승인 전인 **잠정 판단**으로 작성한다. 이후 공개 회고가 실제 결과를 반영한다.
+메모는 LLM이 생성한 요약이므로 완벽한 상대 성향이나 최적 전략을 보장하는 자료는 아니다.
+모든 새 LLM 호출에는 기존 PlayerLLM을 통해 세 메모가 계속 자동 첨부된다.
+
+Runner는 공개 후 진행 중인 게임 판단을 먼저 취소·정리하고, 실패하지 않은 해당 라운드
+참가자 모두의 summary 그래프를 실행한다. 폴드·탈락 참가자도 자신이 볼 수 있는 공개 결과로
+회고할 수 있다. 회고는 공개 행동을 적용하지 않는다. 회고 오류는 참가자 실패 상태와 errors에
+기록하지만 이미 확정된 승패·판돈은 바꾸지 않는다. 게임 중 판단과 공개 후 회고는 별개 단계다.
+
+기본 fake 데모의 ScriptedPokerLLM은 모델을 사용하지 않으므로 회고에서도 빈 메모 제안만 반환한다.
+실제 회고·개인 메모 생성 검증에는 ollama 모드를 사용한다.
+
+#### _old 참조 사전 확인
+
+실행용 `agent/`, `agents/`에는 `_old`를 import하거나 실행하는 코드가 없다.
+`agent/__init__.py`의 `_old` 언급은 설명 문자열이다.
+
+실제 참조는 **`tests/test_ollama_refactor.py` 한 파일**에 있다.
+
+| 참조 | 용도 | 활성 경로로 변경하려면 |
+|---|---|---|
+| `_old.agent.incident_llm` | 이전 운영 업무 계약 회귀 검사 | `_old/agent/incident_llm.py`를 `agent/incident_llm.py`로 꺼내야 함 |
+| `_old.agent.ollama_llm` | 이전 조립 생성자 검사 | `_old/agent/ollama_llm.py`를 `agent/ollama_llm.py`로 꺼내야 함 |
+| `_old.agent.ollama_client` 및 해당 patch 경로 | 보관된 통신 코드 검사 | 활성 `agent/ollama_client.py`가 이미 있으므로 import/patch 경로를 바꾸면 됨 |
+
+위 보관용 테스트를 유지하는 동안에는 해당 _old 파일도 테스트 의존성이다.
+현재 게임을 실행하기 위해 추가로 꺼낼 파일은 없다. 사용자의 사전 통지 요청에 따라
+이 결과를 먼저 알렸으며, **이번 작업에서는 _old 파일을 이동·복사하지 않았다.**
+테스트까지 _old와 분리하려면 위 두 업무 파일을 꺼내고 테스트 참조를 바꾸거나,
+보관 코드에 해당하는 테스트도 함께 보관 영역으로 옮기는 방법이 있다.
+
+#### 검증
+
+- 전체 unittest 44개 통과.
+- 연습용 build_graph와 업무 메서드가 실제 모델을 호출하거나 완성본으로 위임하지 않음을 검사.
+- 실행용 그래프가 개인 메모를 저장하고 공개 후 결과로 갱신하는 전체 흐름 검사.
+- 다른 참가자의 개인 메모가 프롬프트에 섞이지 않고 개인 메모가 공개 기록에 남지 않음을 검사.
+- 폴드한 참가자도 회고하되 해당 카드가 공개 결과에 노출되지 않음을 검사.
+
+실제 Ollama 연동에서 큰 maxLength(예: 3000/4000)가 포함된 JSON 스키마를 전달하면
+현재 설치된 서버에서 `failed to parse grammar` HTTP 400이 발생함을 확인했다.
+출력 문법에서는 큰 문자열 반복 제약을 빼고 길이 설명을 제공하며, 실제 상한은 그래프 검증과
+MCP write_memo에서 적용한다. 입력 메모 읽기의 scope별 상한도 그대로 유지한다.
+또한 speak/quiet와 bet/no-bet의 유효 조합을 anyOf로 구성하여 silent+비어 있지 않은 text,
+bet+wait_for_dialogue=true를 문법 단계에서도 차단한다. 검증·재시도는 계속 유지한다.
+
+실제 qwen3:8b 기능 검증에서는 새 임시 테이블에서 첫 판단을 생성·승인하고,
+베팅을 고정 체크로 진행해 공개한 뒤 회고 그래프를 실행했다. 단기/중기/장기 메모가 각각
+106/118/240자로 저장되고, 공개 기록에 개인 메모가 포함되지 않음을 확인했다.
+이는 모델 판단·MCP 저장·공개 회고 연결의 검사이며 자율 베팅 전략의 성공률 검사는 아니다.
+별도의 자율 실행에서는 반복 맞레이즈로 runner_max_decisions 상한에 도달했다.
+게임 규칙이나 승패를 임의로 바꾸지 않았고, 해당 실행이 오류로 종료·정리되는 것을 확인했다.
+기본 전략의 반복성/공격성은 추가 튜닝 대상이며 코드의 출력 계약·오류 처리와 구분한다.

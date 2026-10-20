@@ -60,6 +60,13 @@ class PlayerCommand(Contract):
         return self
 
 
+class MemoryUpdate(Contract):
+    """개인 메모 교체값. 빈 문자열은 기존 메모를 유지한다."""
+    round: str = ''
+    game: str = ''
+    long: str = ''
+
+
 class AgentDecision(Contract):
     """사용자가 만들 그래프의 반환 계약. actor는 모델이 아닌 실행 코드가 지정한다."""
     round_id: int = Field(ge=1)
@@ -71,6 +78,7 @@ class AgentDecision(Contract):
     reply_to: str | None = None
     bet: Bet | None = None
     wait_for_dialogue: bool = False
+    memory_updates: MemoryUpdate = Field(default_factory=MemoryUpdate)
 
     @model_validator(mode='after')
     def validate_decision(self):

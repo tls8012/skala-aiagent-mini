@@ -76,6 +76,31 @@ class RoundRunner:
             self._tasks[pid] = task
             task.add_done_callback(lambda completed, actor=pid: self._completed.put_nowait((actor, completed)))
 
+    async def _cancel_tasks(self):
+        tasks = list(self._tasks.values())
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+        self._tasks.clear()
+        self._pending.clear()
+
+    async def _summarize_round(self):
+        # 게임 중 판단을 먼저 정리하여 같은 참가자의 메모 쓰기가 회고와 겹치지 않게 한다.
+        await self._cancel_tasks()
+        event = next(event for event in reversed(self.table.events) if event['type'] == 'RoundEnded')
+        participants = [pid for pid in self.table.round.order if not self.table.players[pid].failed]
+        observations = {pid: self.table.observe(pid) for pid in participants}
+        self.decisions += len(participants)
+        # 공개 후 메모 회고는 동시 진행해도 게임의 발언 시점/베팅 순서에 영향을 주지 않는다.
+        outputs = await asyncio.gather(*(self.graphs[pid].ainvoke({
+            'observation': observations[pid].model_dump(), 'event': event, 'force_bet': False})
+            for pid in participants), return_exceptions=True)
+        for pid, output in zip(participants, outputs):
+            if isinstance(output, BaseException):
+                self.errors[pid] = f'round summary: {type(output).__name__}: {output}'
+                self.table.fail_agent(pid)
+
     async def run_round(self, *, mcp=None, publish_memory: bool = False) -> dict:
         """진행 중 라운드를 이어가거나 새 라운드를 시작하고 공개 결과를 반환한다."""
         if any(player.kind == 'human' and not player.eliminated for player in self.table.players.values()):
@@ -124,14 +149,9 @@ class RoundRunner:
                     self.errors[pid] = f'{type(error).__name__}: {error}'
                     self.table.fail_agent(pid)
                 self._dispatch()
+            await self._summarize_round()
             if publish_memory:
                 await self.table.publish_memories(mcp)
             return dict(self.table.round.result)
         finally:
-            tasks = list(self._tasks.values())
-            for task in tasks:
-                task.cancel()
-            if tasks:
-                await asyncio.gather(*tasks, return_exceptions=True)
-            self._tasks.clear()
-            self._pending.clear()
+            await self._cancel_tasks()

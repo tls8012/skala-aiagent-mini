@@ -18,6 +18,10 @@ class ScriptedPokerLLM(PokerLLM):
     async def research(self, observation, event):
         return {'status': 'skipped', 'matches': []}
 
+    async def summarize_round(self, observation, feedback=''):
+        return AgentDecision(round_id=observation.round_id, basis_event=observation.event_id,
+                             speech='unavailable')
+
     async def decide(self, observation, research, force_bet=False, feedback=''):
         speak = observation.can_speak and observation.required_game_utterances > 0
         bet = None

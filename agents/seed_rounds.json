@@ -1,0 +1,2762 @@
+[
+  {
+    "id": "seed-01",
+    "source": "seed",
+    "round_id": 1,
+    "events": [
+      {
+        "event_id": 1,
+        "round_id": 1,
+        "type": "RoundStarted",
+        "order": [
+          "A",
+          "B",
+          "C"
+        ],
+        "pot": 6
+      },
+      {
+        "event_id": 2,
+        "round_id": 1,
+        "type": "Speech",
+        "player_id": "A",
+        "channel": "game",
+        "text": "이번에는 자신 있어.",
+        "target": null,
+        "request_id": "A-speech"
+      },
+      {
+        "event_id": 3,
+        "round_id": 1,
+        "type": "Speech",
+        "player_id": "B",
+        "channel": "game",
+        "text": "그 말이 진짜일까?",
+        "target": null,
+        "request_id": "B-speech"
+      },
+      {
+        "event_id": 4,
+        "round_id": 1,
+        "type": "Speech",
+        "player_id": "C",
+        "channel": "game",
+        "text": "공개까지 가보자.",
+        "target": null,
+        "request_id": "C-speech"
+      },
+      {
+        "event_id": 5,
+        "round_id": 1,
+        "type": "BetPlaced",
+        "player_id": "A",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 6,
+        "round_id": 1,
+        "type": "BetPlaced",
+        "player_id": "B",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 7,
+        "round_id": 1,
+        "type": "BetPlaced",
+        "player_id": "C",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 8,
+        "round_id": 1,
+        "type": "RoundEnded",
+        "winner": "A",
+        "draw": false,
+        "pot": 6,
+        "carry_pot": 0,
+        "revealed_cards": {
+          "A": {
+            "rank": 13,
+            "suit": "S"
+          },
+          "B": {
+            "rank": 8,
+            "suit": "H"
+          },
+          "C": {
+            "rank": 3,
+            "suit": "C"
+          }
+        },
+        "eliminated": [],
+        "game_winner": null,
+        "finished": false
+      }
+    ],
+    "result": {
+      "winner": "A",
+      "draw": false,
+      "pot": 6,
+      "carry_pot": 0,
+      "revealed_cards": {
+        "A": {
+          "rank": 13,
+          "suit": "S"
+        },
+        "B": {
+          "rank": 8,
+          "suit": "H"
+        },
+        "C": {
+          "rank": 3,
+          "suit": "C"
+        }
+      },
+      "eliminated": []
+    }
+  },
+  {
+    "id": "seed-02",
+    "source": "seed",
+    "round_id": 2,
+    "events": [
+      {
+        "event_id": 1,
+        "round_id": 2,
+        "type": "RoundStarted",
+        "order": [
+          "A",
+          "B",
+          "C"
+        ],
+        "pot": 6
+      },
+      {
+        "event_id": 2,
+        "round_id": 2,
+        "type": "Speech",
+        "player_id": "A",
+        "channel": "game",
+        "text": "숫자는 비슷해 보이네.",
+        "target": null,
+        "request_id": "A-speech"
+      },
+      {
+        "event_id": 3,
+        "round_id": 2,
+        "type": "Speech",
+        "player_id": "B",
+        "channel": "game",
+        "text": "문양도 중요하지.",
+        "target": null,
+        "request_id": "B-speech"
+      },
+      {
+        "event_id": 4,
+        "round_id": 2,
+        "type": "Speech",
+        "player_id": "C",
+        "channel": "game",
+        "text": "나는 계속 참여할게.",
+        "target": null,
+        "request_id": "C-speech"
+      },
+      {
+        "event_id": 5,
+        "round_id": 2,
+        "type": "BetPlaced",
+        "player_id": "A",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 6,
+        "round_id": 2,
+        "type": "BetPlaced",
+        "player_id": "B",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 7,
+        "round_id": 2,
+        "type": "BetPlaced",
+        "player_id": "C",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 8,
+        "round_id": 2,
+        "type": "RoundEnded",
+        "winner": "C",
+        "draw": false,
+        "pot": 6,
+        "carry_pot": 0,
+        "revealed_cards": {
+          "A": {
+            "rank": 5,
+            "suit": "C"
+          },
+          "B": {
+            "rank": 5,
+            "suit": "D"
+          },
+          "C": {
+            "rank": 5,
+            "suit": "S"
+          }
+        },
+        "eliminated": [],
+        "game_winner": null,
+        "finished": false
+      }
+    ],
+    "result": {
+      "winner": "C",
+      "draw": false,
+      "pot": 6,
+      "carry_pot": 0,
+      "revealed_cards": {
+        "A": {
+          "rank": 5,
+          "suit": "C"
+        },
+        "B": {
+          "rank": 5,
+          "suit": "D"
+        },
+        "C": {
+          "rank": 5,
+          "suit": "S"
+        }
+      },
+      "eliminated": []
+    }
+  },
+  {
+    "id": "seed-03",
+    "source": "seed",
+    "round_id": 3,
+    "events": [
+      {
+        "event_id": 1,
+        "round_id": 3,
+        "type": "RoundStarted",
+        "order": [
+          "A",
+          "B",
+          "C"
+        ],
+        "pot": 6
+      },
+      {
+        "event_id": 2,
+        "round_id": 3,
+        "type": "Speech",
+        "player_id": "A",
+        "channel": "game",
+        "text": "에이스만 강한 건 아니야.",
+        "target": null,
+        "request_id": "A-speech"
+      },
+      {
+        "event_id": 3,
+        "round_id": 3,
+        "type": "Speech",
+        "player_id": "B",
+        "channel": "game",
+        "text": "순환 관계를 조심해야겠네.",
+        "target": null,
+        "request_id": "B-speech"
+      },
+      {
+        "event_id": 4,
+        "round_id": 3,
+        "type": "Speech",
+        "player_id": "C",
+        "channel": "game",
+        "text": "쉽게 판단 못 하겠어.",
+        "target": null,
+        "request_id": "C-speech"
+      },
+      {
+        "event_id": 5,
+        "round_id": 3,
+        "type": "BetPlaced",
+        "player_id": "A",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 6,
+        "round_id": 3,
+        "type": "BetPlaced",
+        "player_id": "B",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 7,
+        "round_id": 3,
+        "type": "BetPlaced",
+        "player_id": "C",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 8,
+        "round_id": 3,
+        "type": "RoundEnded",
+        "winner": null,
+        "draw": true,
+        "pot": 6,
+        "carry_pot": 6,
+        "revealed_cards": {
+          "A": {
+            "rank": 2,
+            "suit": "C"
+          },
+          "B": {
+            "rank": 14,
+            "suit": "H"
+          },
+          "C": {
+            "rank": 13,
+            "suit": "S"
+          }
+        },
+        "eliminated": [],
+        "game_winner": null,
+        "finished": false
+      }
+    ],
+    "result": {
+      "winner": null,
+      "draw": true,
+      "pot": 6,
+      "carry_pot": 6,
+      "revealed_cards": {
+        "A": {
+          "rank": 2,
+          "suit": "C"
+        },
+        "B": {
+          "rank": 14,
+          "suit": "H"
+        },
+        "C": {
+          "rank": 13,
+          "suit": "S"
+        }
+      },
+      "eliminated": []
+    }
+  },
+  {
+    "id": "seed-04",
+    "source": "seed",
+    "round_id": 4,
+    "events": [
+      {
+        "event_id": 1,
+        "round_id": 4,
+        "type": "RoundStarted",
+        "order": [
+          "A",
+          "B",
+          "C"
+        ],
+        "pot": 6
+      },
+      {
+        "event_id": 2,
+        "round_id": 4,
+        "type": "Speech",
+        "player_id": "A",
+        "channel": "game",
+        "text": "높은 카드라고 생각해.",
+        "target": null,
+        "request_id": "A-speech"
+      },
+      {
+        "event_id": 3,
+        "round_id": 4,
+        "type": "Speech",
+        "player_id": "B",
+        "channel": "game",
+        "text": "나는 이번에는 물러날 수도 있어.",
+        "target": null,
+        "request_id": "B-speech"
+      },
+      {
+        "event_id": 4,
+        "round_id": 4,
+        "type": "Speech",
+        "player_id": "C",
+        "channel": "game",
+        "text": "그 주장을 확인해보자.",
+        "target": null,
+        "request_id": "C-speech"
+      },
+      {
+        "event_id": 5,
+        "round_id": 4,
+        "type": "BetPlaced",
+        "player_id": "A",
+        "action": "raise",
+        "amount": 1,
+        "contributions": {
+          "A": 1,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 1,
+        "pot": 7
+      },
+      {
+        "event_id": 6,
+        "round_id": 4,
+        "type": "BetPlaced",
+        "player_id": "B",
+        "action": "fold",
+        "amount": 0,
+        "contributions": {
+          "A": 1,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 1,
+        "pot": 7
+      },
+      {
+        "event_id": 7,
+        "round_id": 4,
+        "type": "BetPlaced",
+        "player_id": "C",
+        "action": "call",
+        "amount": 0,
+        "contributions": {
+          "A": 1,
+          "B": 0,
+          "C": 1
+        },
+        "current_bet": 1,
+        "pot": 8
+      },
+      {
+        "event_id": 8,
+        "round_id": 4,
+        "type": "RoundEnded",
+        "winner": "C",
+        "draw": false,
+        "pot": 8,
+        "carry_pot": 0,
+        "revealed_cards": {
+          "A": {
+            "rank": 4,
+            "suit": "C"
+          },
+          "C": {
+            "rank": 10,
+            "suit": "D"
+          }
+        },
+        "eliminated": [],
+        "game_winner": null,
+        "finished": false
+      }
+    ],
+    "result": {
+      "winner": "C",
+      "draw": false,
+      "pot": 8,
+      "carry_pot": 0,
+      "revealed_cards": {
+        "A": {
+          "rank": 4,
+          "suit": "C"
+        },
+        "C": {
+          "rank": 10,
+          "suit": "D"
+        }
+      },
+      "eliminated": []
+    }
+  },
+  {
+    "id": "seed-05",
+    "source": "seed",
+    "round_id": 5,
+    "events": [
+      {
+        "event_id": 1,
+        "round_id": 5,
+        "type": "RoundStarted",
+        "order": [
+          "A",
+          "B",
+          "C"
+        ],
+        "pot": 6
+      },
+      {
+        "event_id": 2,
+        "round_id": 5,
+        "type": "Speech",
+        "player_id": "A",
+        "channel": "game",
+        "text": "이번에는 자신 있어.",
+        "target": null,
+        "request_id": "A-speech"
+      },
+      {
+        "event_id": 3,
+        "round_id": 5,
+        "type": "Speech",
+        "player_id": "B",
+        "channel": "game",
+        "text": "그 말이 진짜일까?",
+        "target": null,
+        "request_id": "B-speech"
+      },
+      {
+        "event_id": 4,
+        "round_id": 5,
+        "type": "Speech",
+        "player_id": "C",
+        "channel": "game",
+        "text": "공개까지 가보자.",
+        "target": null,
+        "request_id": "C-speech"
+      },
+      {
+        "event_id": 5,
+        "round_id": 5,
+        "type": "BetPlaced",
+        "player_id": "A",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 6,
+        "round_id": 5,
+        "type": "BetPlaced",
+        "player_id": "B",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 7,
+        "round_id": 5,
+        "type": "BetPlaced",
+        "player_id": "C",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 8,
+        "round_id": 5,
+        "type": "RoundEnded",
+        "winner": "A",
+        "draw": false,
+        "pot": 6,
+        "carry_pot": 0,
+        "revealed_cards": {
+          "A": {
+            "rank": 12,
+            "suit": "S"
+          },
+          "B": {
+            "rank": 7,
+            "suit": "H"
+          },
+          "C": {
+            "rank": 3,
+            "suit": "C"
+          }
+        },
+        "eliminated": [],
+        "game_winner": null,
+        "finished": false
+      }
+    ],
+    "result": {
+      "winner": "A",
+      "draw": false,
+      "pot": 6,
+      "carry_pot": 0,
+      "revealed_cards": {
+        "A": {
+          "rank": 12,
+          "suit": "S"
+        },
+        "B": {
+          "rank": 7,
+          "suit": "H"
+        },
+        "C": {
+          "rank": 3,
+          "suit": "C"
+        }
+      },
+      "eliminated": []
+    }
+  },
+  {
+    "id": "seed-06",
+    "source": "seed",
+    "round_id": 6,
+    "events": [
+      {
+        "event_id": 1,
+        "round_id": 6,
+        "type": "RoundStarted",
+        "order": [
+          "A",
+          "B",
+          "C"
+        ],
+        "pot": 6
+      },
+      {
+        "event_id": 2,
+        "round_id": 6,
+        "type": "Speech",
+        "player_id": "A",
+        "channel": "game",
+        "text": "숫자는 비슷해 보이네.",
+        "target": null,
+        "request_id": "A-speech"
+      },
+      {
+        "event_id": 3,
+        "round_id": 6,
+        "type": "Speech",
+        "player_id": "B",
+        "channel": "game",
+        "text": "문양도 중요하지.",
+        "target": null,
+        "request_id": "B-speech"
+      },
+      {
+        "event_id": 4,
+        "round_id": 6,
+        "type": "Speech",
+        "player_id": "C",
+        "channel": "game",
+        "text": "나는 계속 참여할게.",
+        "target": null,
+        "request_id": "C-speech"
+      },
+      {
+        "event_id": 5,
+        "round_id": 6,
+        "type": "BetPlaced",
+        "player_id": "A",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 6,
+        "round_id": 6,
+        "type": "BetPlaced",
+        "player_id": "B",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 7,
+        "round_id": 6,
+        "type": "BetPlaced",
+        "player_id": "C",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 8,
+        "round_id": 6,
+        "type": "RoundEnded",
+        "winner": "C",
+        "draw": false,
+        "pot": 6,
+        "carry_pot": 0,
+        "revealed_cards": {
+          "A": {
+            "rank": 6,
+            "suit": "C"
+          },
+          "B": {
+            "rank": 6,
+            "suit": "D"
+          },
+          "C": {
+            "rank": 6,
+            "suit": "S"
+          }
+        },
+        "eliminated": [],
+        "game_winner": null,
+        "finished": false
+      }
+    ],
+    "result": {
+      "winner": "C",
+      "draw": false,
+      "pot": 6,
+      "carry_pot": 0,
+      "revealed_cards": {
+        "A": {
+          "rank": 6,
+          "suit": "C"
+        },
+        "B": {
+          "rank": 6,
+          "suit": "D"
+        },
+        "C": {
+          "rank": 6,
+          "suit": "S"
+        }
+      },
+      "eliminated": []
+    }
+  },
+  {
+    "id": "seed-07",
+    "source": "seed",
+    "round_id": 7,
+    "events": [
+      {
+        "event_id": 1,
+        "round_id": 7,
+        "type": "RoundStarted",
+        "order": [
+          "A",
+          "B",
+          "C"
+        ],
+        "pot": 6
+      },
+      {
+        "event_id": 2,
+        "round_id": 7,
+        "type": "Speech",
+        "player_id": "A",
+        "channel": "game",
+        "text": "에이스만 강한 건 아니야.",
+        "target": null,
+        "request_id": "A-speech"
+      },
+      {
+        "event_id": 3,
+        "round_id": 7,
+        "type": "Speech",
+        "player_id": "B",
+        "channel": "game",
+        "text": "순환 관계를 조심해야겠네.",
+        "target": null,
+        "request_id": "B-speech"
+      },
+      {
+        "event_id": 4,
+        "round_id": 7,
+        "type": "Speech",
+        "player_id": "C",
+        "channel": "game",
+        "text": "쉽게 판단 못 하겠어.",
+        "target": null,
+        "request_id": "C-speech"
+      },
+      {
+        "event_id": 5,
+        "round_id": 7,
+        "type": "BetPlaced",
+        "player_id": "A",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 6,
+        "round_id": 7,
+        "type": "BetPlaced",
+        "player_id": "B",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 7,
+        "round_id": 7,
+        "type": "BetPlaced",
+        "player_id": "C",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 8,
+        "round_id": 7,
+        "type": "RoundEnded",
+        "winner": null,
+        "draw": true,
+        "pot": 6,
+        "carry_pot": 6,
+        "revealed_cards": {
+          "A": {
+            "rank": 2,
+            "suit": "H"
+          },
+          "B": {
+            "rank": 14,
+            "suit": "H"
+          },
+          "C": {
+            "rank": 12,
+            "suit": "S"
+          }
+        },
+        "eliminated": [],
+        "game_winner": null,
+        "finished": false
+      }
+    ],
+    "result": {
+      "winner": null,
+      "draw": true,
+      "pot": 6,
+      "carry_pot": 6,
+      "revealed_cards": {
+        "A": {
+          "rank": 2,
+          "suit": "H"
+        },
+        "B": {
+          "rank": 14,
+          "suit": "H"
+        },
+        "C": {
+          "rank": 12,
+          "suit": "S"
+        }
+      },
+      "eliminated": []
+    }
+  },
+  {
+    "id": "seed-08",
+    "source": "seed",
+    "round_id": 8,
+    "events": [
+      {
+        "event_id": 1,
+        "round_id": 8,
+        "type": "RoundStarted",
+        "order": [
+          "A",
+          "B",
+          "C"
+        ],
+        "pot": 6
+      },
+      {
+        "event_id": 2,
+        "round_id": 8,
+        "type": "Speech",
+        "player_id": "A",
+        "channel": "game",
+        "text": "높은 카드라고 생각해.",
+        "target": null,
+        "request_id": "A-speech"
+      },
+      {
+        "event_id": 3,
+        "round_id": 8,
+        "type": "Speech",
+        "player_id": "B",
+        "channel": "game",
+        "text": "나는 이번에는 물러날 수도 있어.",
+        "target": null,
+        "request_id": "B-speech"
+      },
+      {
+        "event_id": 4,
+        "round_id": 8,
+        "type": "Speech",
+        "player_id": "C",
+        "channel": "game",
+        "text": "그 주장을 확인해보자.",
+        "target": null,
+        "request_id": "C-speech"
+      },
+      {
+        "event_id": 5,
+        "round_id": 8,
+        "type": "BetPlaced",
+        "player_id": "A",
+        "action": "raise",
+        "amount": 2,
+        "contributions": {
+          "A": 2,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 2,
+        "pot": 8
+      },
+      {
+        "event_id": 6,
+        "round_id": 8,
+        "type": "BetPlaced",
+        "player_id": "B",
+        "action": "fold",
+        "amount": 0,
+        "contributions": {
+          "A": 2,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 2,
+        "pot": 8
+      },
+      {
+        "event_id": 7,
+        "round_id": 8,
+        "type": "BetPlaced",
+        "player_id": "C",
+        "action": "call",
+        "amount": 0,
+        "contributions": {
+          "A": 2,
+          "B": 0,
+          "C": 2
+        },
+        "current_bet": 2,
+        "pot": 10
+      },
+      {
+        "event_id": 8,
+        "round_id": 8,
+        "type": "RoundEnded",
+        "winner": "C",
+        "draw": false,
+        "pot": 10,
+        "carry_pot": 0,
+        "revealed_cards": {
+          "A": {
+            "rank": 5,
+            "suit": "C"
+          },
+          "C": {
+            "rank": 10,
+            "suit": "D"
+          }
+        },
+        "eliminated": [],
+        "game_winner": null,
+        "finished": false
+      }
+    ],
+    "result": {
+      "winner": "C",
+      "draw": false,
+      "pot": 10,
+      "carry_pot": 0,
+      "revealed_cards": {
+        "A": {
+          "rank": 5,
+          "suit": "C"
+        },
+        "C": {
+          "rank": 10,
+          "suit": "D"
+        }
+      },
+      "eliminated": []
+    }
+  },
+  {
+    "id": "seed-09",
+    "source": "seed",
+    "round_id": 9,
+    "events": [
+      {
+        "event_id": 1,
+        "round_id": 9,
+        "type": "RoundStarted",
+        "order": [
+          "A",
+          "B",
+          "C"
+        ],
+        "pot": 6
+      },
+      {
+        "event_id": 2,
+        "round_id": 9,
+        "type": "Speech",
+        "player_id": "A",
+        "channel": "game",
+        "text": "이번에는 자신 있어.",
+        "target": null,
+        "request_id": "A-speech"
+      },
+      {
+        "event_id": 3,
+        "round_id": 9,
+        "type": "Speech",
+        "player_id": "B",
+        "channel": "game",
+        "text": "그 말이 진짜일까?",
+        "target": null,
+        "request_id": "B-speech"
+      },
+      {
+        "event_id": 4,
+        "round_id": 9,
+        "type": "Speech",
+        "player_id": "C",
+        "channel": "game",
+        "text": "공개까지 가보자.",
+        "target": null,
+        "request_id": "C-speech"
+      },
+      {
+        "event_id": 5,
+        "round_id": 9,
+        "type": "BetPlaced",
+        "player_id": "A",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 6,
+        "round_id": 9,
+        "type": "BetPlaced",
+        "player_id": "B",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 7,
+        "round_id": 9,
+        "type": "BetPlaced",
+        "player_id": "C",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 8,
+        "round_id": 9,
+        "type": "RoundEnded",
+        "winner": "A",
+        "draw": false,
+        "pot": 6,
+        "carry_pot": 0,
+        "revealed_cards": {
+          "A": {
+            "rank": 11,
+            "suit": "S"
+          },
+          "B": {
+            "rank": 6,
+            "suit": "H"
+          },
+          "C": {
+            "rank": 3,
+            "suit": "C"
+          }
+        },
+        "eliminated": [],
+        "game_winner": null,
+        "finished": false
+      }
+    ],
+    "result": {
+      "winner": "A",
+      "draw": false,
+      "pot": 6,
+      "carry_pot": 0,
+      "revealed_cards": {
+        "A": {
+          "rank": 11,
+          "suit": "S"
+        },
+        "B": {
+          "rank": 6,
+          "suit": "H"
+        },
+        "C": {
+          "rank": 3,
+          "suit": "C"
+        }
+      },
+      "eliminated": []
+    }
+  },
+  {
+    "id": "seed-10",
+    "source": "seed",
+    "round_id": 10,
+    "events": [
+      {
+        "event_id": 1,
+        "round_id": 10,
+        "type": "RoundStarted",
+        "order": [
+          "A",
+          "B",
+          "C"
+        ],
+        "pot": 6
+      },
+      {
+        "event_id": 2,
+        "round_id": 10,
+        "type": "Speech",
+        "player_id": "A",
+        "channel": "game",
+        "text": "숫자는 비슷해 보이네.",
+        "target": null,
+        "request_id": "A-speech"
+      },
+      {
+        "event_id": 3,
+        "round_id": 10,
+        "type": "Speech",
+        "player_id": "B",
+        "channel": "game",
+        "text": "문양도 중요하지.",
+        "target": null,
+        "request_id": "B-speech"
+      },
+      {
+        "event_id": 4,
+        "round_id": 10,
+        "type": "Speech",
+        "player_id": "C",
+        "channel": "game",
+        "text": "나는 계속 참여할게.",
+        "target": null,
+        "request_id": "C-speech"
+      },
+      {
+        "event_id": 5,
+        "round_id": 10,
+        "type": "BetPlaced",
+        "player_id": "A",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 6,
+        "round_id": 10,
+        "type": "BetPlaced",
+        "player_id": "B",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 7,
+        "round_id": 10,
+        "type": "BetPlaced",
+        "player_id": "C",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 8,
+        "round_id": 10,
+        "type": "RoundEnded",
+        "winner": "C",
+        "draw": false,
+        "pot": 6,
+        "carry_pot": 0,
+        "revealed_cards": {
+          "A": {
+            "rank": 7,
+            "suit": "C"
+          },
+          "B": {
+            "rank": 7,
+            "suit": "D"
+          },
+          "C": {
+            "rank": 7,
+            "suit": "S"
+          }
+        },
+        "eliminated": [],
+        "game_winner": null,
+        "finished": false
+      }
+    ],
+    "result": {
+      "winner": "C",
+      "draw": false,
+      "pot": 6,
+      "carry_pot": 0,
+      "revealed_cards": {
+        "A": {
+          "rank": 7,
+          "suit": "C"
+        },
+        "B": {
+          "rank": 7,
+          "suit": "D"
+        },
+        "C": {
+          "rank": 7,
+          "suit": "S"
+        }
+      },
+      "eliminated": []
+    }
+  },
+  {
+    "id": "seed-11",
+    "source": "seed",
+    "round_id": 11,
+    "events": [
+      {
+        "event_id": 1,
+        "round_id": 11,
+        "type": "RoundStarted",
+        "order": [
+          "A",
+          "B",
+          "C"
+        ],
+        "pot": 6
+      },
+      {
+        "event_id": 2,
+        "round_id": 11,
+        "type": "Speech",
+        "player_id": "A",
+        "channel": "game",
+        "text": "에이스만 강한 건 아니야.",
+        "target": null,
+        "request_id": "A-speech"
+      },
+      {
+        "event_id": 3,
+        "round_id": 11,
+        "type": "Speech",
+        "player_id": "B",
+        "channel": "game",
+        "text": "순환 관계를 조심해야겠네.",
+        "target": null,
+        "request_id": "B-speech"
+      },
+      {
+        "event_id": 4,
+        "round_id": 11,
+        "type": "Speech",
+        "player_id": "C",
+        "channel": "game",
+        "text": "쉽게 판단 못 하겠어.",
+        "target": null,
+        "request_id": "C-speech"
+      },
+      {
+        "event_id": 5,
+        "round_id": 11,
+        "type": "BetPlaced",
+        "player_id": "A",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 6,
+        "round_id": 11,
+        "type": "BetPlaced",
+        "player_id": "B",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 7,
+        "round_id": 11,
+        "type": "BetPlaced",
+        "player_id": "C",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 8,
+        "round_id": 11,
+        "type": "RoundEnded",
+        "winner": null,
+        "draw": true,
+        "pot": 6,
+        "carry_pot": 6,
+        "revealed_cards": {
+          "A": {
+            "rank": 2,
+            "suit": "D"
+          },
+          "B": {
+            "rank": 14,
+            "suit": "H"
+          },
+          "C": {
+            "rank": 11,
+            "suit": "S"
+          }
+        },
+        "eliminated": [],
+        "game_winner": null,
+        "finished": false
+      }
+    ],
+    "result": {
+      "winner": null,
+      "draw": true,
+      "pot": 6,
+      "carry_pot": 6,
+      "revealed_cards": {
+        "A": {
+          "rank": 2,
+          "suit": "D"
+        },
+        "B": {
+          "rank": 14,
+          "suit": "H"
+        },
+        "C": {
+          "rank": 11,
+          "suit": "S"
+        }
+      },
+      "eliminated": []
+    }
+  },
+  {
+    "id": "seed-12",
+    "source": "seed",
+    "round_id": 12,
+    "events": [
+      {
+        "event_id": 1,
+        "round_id": 12,
+        "type": "RoundStarted",
+        "order": [
+          "A",
+          "B",
+          "C"
+        ],
+        "pot": 6
+      },
+      {
+        "event_id": 2,
+        "round_id": 12,
+        "type": "Speech",
+        "player_id": "A",
+        "channel": "game",
+        "text": "높은 카드라고 생각해.",
+        "target": null,
+        "request_id": "A-speech"
+      },
+      {
+        "event_id": 3,
+        "round_id": 12,
+        "type": "Speech",
+        "player_id": "B",
+        "channel": "game",
+        "text": "나는 이번에는 물러날 수도 있어.",
+        "target": null,
+        "request_id": "B-speech"
+      },
+      {
+        "event_id": 4,
+        "round_id": 12,
+        "type": "Speech",
+        "player_id": "C",
+        "channel": "game",
+        "text": "그 주장을 확인해보자.",
+        "target": null,
+        "request_id": "C-speech"
+      },
+      {
+        "event_id": 5,
+        "round_id": 12,
+        "type": "BetPlaced",
+        "player_id": "A",
+        "action": "raise",
+        "amount": 3,
+        "contributions": {
+          "A": 3,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 3,
+        "pot": 9
+      },
+      {
+        "event_id": 6,
+        "round_id": 12,
+        "type": "BetPlaced",
+        "player_id": "B",
+        "action": "fold",
+        "amount": 0,
+        "contributions": {
+          "A": 3,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 3,
+        "pot": 9
+      },
+      {
+        "event_id": 7,
+        "round_id": 12,
+        "type": "BetPlaced",
+        "player_id": "C",
+        "action": "call",
+        "amount": 0,
+        "contributions": {
+          "A": 3,
+          "B": 0,
+          "C": 3
+        },
+        "current_bet": 3,
+        "pot": 12
+      },
+      {
+        "event_id": 8,
+        "round_id": 12,
+        "type": "RoundEnded",
+        "winner": "C",
+        "draw": false,
+        "pot": 12,
+        "carry_pot": 0,
+        "revealed_cards": {
+          "A": {
+            "rank": 6,
+            "suit": "C"
+          },
+          "C": {
+            "rank": 10,
+            "suit": "D"
+          }
+        },
+        "eliminated": [],
+        "game_winner": null,
+        "finished": false
+      }
+    ],
+    "result": {
+      "winner": "C",
+      "draw": false,
+      "pot": 12,
+      "carry_pot": 0,
+      "revealed_cards": {
+        "A": {
+          "rank": 6,
+          "suit": "C"
+        },
+        "C": {
+          "rank": 10,
+          "suit": "D"
+        }
+      },
+      "eliminated": []
+    }
+  },
+  {
+    "id": "seed-13",
+    "source": "seed",
+    "round_id": 13,
+    "events": [
+      {
+        "event_id": 1,
+        "round_id": 13,
+        "type": "RoundStarted",
+        "order": [
+          "A",
+          "B",
+          "C"
+        ],
+        "pot": 6
+      },
+      {
+        "event_id": 2,
+        "round_id": 13,
+        "type": "Speech",
+        "player_id": "A",
+        "channel": "game",
+        "text": "이번에는 자신 있어.",
+        "target": null,
+        "request_id": "A-speech"
+      },
+      {
+        "event_id": 3,
+        "round_id": 13,
+        "type": "Speech",
+        "player_id": "B",
+        "channel": "game",
+        "text": "그 말이 진짜일까?",
+        "target": null,
+        "request_id": "B-speech"
+      },
+      {
+        "event_id": 4,
+        "round_id": 13,
+        "type": "Speech",
+        "player_id": "C",
+        "channel": "game",
+        "text": "공개까지 가보자.",
+        "target": null,
+        "request_id": "C-speech"
+      },
+      {
+        "event_id": 5,
+        "round_id": 13,
+        "type": "BetPlaced",
+        "player_id": "A",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 6,
+        "round_id": 13,
+        "type": "BetPlaced",
+        "player_id": "B",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 7,
+        "round_id": 13,
+        "type": "BetPlaced",
+        "player_id": "C",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 8,
+        "round_id": 13,
+        "type": "RoundEnded",
+        "winner": "A",
+        "draw": false,
+        "pot": 6,
+        "carry_pot": 0,
+        "revealed_cards": {
+          "A": {
+            "rank": 10,
+            "suit": "S"
+          },
+          "B": {
+            "rank": 5,
+            "suit": "H"
+          },
+          "C": {
+            "rank": 3,
+            "suit": "C"
+          }
+        },
+        "eliminated": [],
+        "game_winner": null,
+        "finished": false
+      }
+    ],
+    "result": {
+      "winner": "A",
+      "draw": false,
+      "pot": 6,
+      "carry_pot": 0,
+      "revealed_cards": {
+        "A": {
+          "rank": 10,
+          "suit": "S"
+        },
+        "B": {
+          "rank": 5,
+          "suit": "H"
+        },
+        "C": {
+          "rank": 3,
+          "suit": "C"
+        }
+      },
+      "eliminated": []
+    }
+  },
+  {
+    "id": "seed-14",
+    "source": "seed",
+    "round_id": 14,
+    "events": [
+      {
+        "event_id": 1,
+        "round_id": 14,
+        "type": "RoundStarted",
+        "order": [
+          "A",
+          "B",
+          "C"
+        ],
+        "pot": 6
+      },
+      {
+        "event_id": 2,
+        "round_id": 14,
+        "type": "Speech",
+        "player_id": "A",
+        "channel": "game",
+        "text": "숫자는 비슷해 보이네.",
+        "target": null,
+        "request_id": "A-speech"
+      },
+      {
+        "event_id": 3,
+        "round_id": 14,
+        "type": "Speech",
+        "player_id": "B",
+        "channel": "game",
+        "text": "문양도 중요하지.",
+        "target": null,
+        "request_id": "B-speech"
+      },
+      {
+        "event_id": 4,
+        "round_id": 14,
+        "type": "Speech",
+        "player_id": "C",
+        "channel": "game",
+        "text": "나는 계속 참여할게.",
+        "target": null,
+        "request_id": "C-speech"
+      },
+      {
+        "event_id": 5,
+        "round_id": 14,
+        "type": "BetPlaced",
+        "player_id": "A",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 6,
+        "round_id": 14,
+        "type": "BetPlaced",
+        "player_id": "B",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 7,
+        "round_id": 14,
+        "type": "BetPlaced",
+        "player_id": "C",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 8,
+        "round_id": 14,
+        "type": "RoundEnded",
+        "winner": "C",
+        "draw": false,
+        "pot": 6,
+        "carry_pot": 0,
+        "revealed_cards": {
+          "A": {
+            "rank": 8,
+            "suit": "C"
+          },
+          "B": {
+            "rank": 8,
+            "suit": "D"
+          },
+          "C": {
+            "rank": 8,
+            "suit": "S"
+          }
+        },
+        "eliminated": [],
+        "game_winner": null,
+        "finished": false
+      }
+    ],
+    "result": {
+      "winner": "C",
+      "draw": false,
+      "pot": 6,
+      "carry_pot": 0,
+      "revealed_cards": {
+        "A": {
+          "rank": 8,
+          "suit": "C"
+        },
+        "B": {
+          "rank": 8,
+          "suit": "D"
+        },
+        "C": {
+          "rank": 8,
+          "suit": "S"
+        }
+      },
+      "eliminated": []
+    }
+  },
+  {
+    "id": "seed-15",
+    "source": "seed",
+    "round_id": 15,
+    "events": [
+      {
+        "event_id": 1,
+        "round_id": 15,
+        "type": "RoundStarted",
+        "order": [
+          "A",
+          "B",
+          "C"
+        ],
+        "pot": 6
+      },
+      {
+        "event_id": 2,
+        "round_id": 15,
+        "type": "Speech",
+        "player_id": "A",
+        "channel": "game",
+        "text": "에이스만 강한 건 아니야.",
+        "target": null,
+        "request_id": "A-speech"
+      },
+      {
+        "event_id": 3,
+        "round_id": 15,
+        "type": "Speech",
+        "player_id": "B",
+        "channel": "game",
+        "text": "순환 관계를 조심해야겠네.",
+        "target": null,
+        "request_id": "B-speech"
+      },
+      {
+        "event_id": 4,
+        "round_id": 15,
+        "type": "Speech",
+        "player_id": "C",
+        "channel": "game",
+        "text": "쉽게 판단 못 하겠어.",
+        "target": null,
+        "request_id": "C-speech"
+      },
+      {
+        "event_id": 5,
+        "round_id": 15,
+        "type": "BetPlaced",
+        "player_id": "A",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 6,
+        "round_id": 15,
+        "type": "BetPlaced",
+        "player_id": "B",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 7,
+        "round_id": 15,
+        "type": "BetPlaced",
+        "player_id": "C",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 8,
+        "round_id": 15,
+        "type": "RoundEnded",
+        "winner": null,
+        "draw": true,
+        "pot": 6,
+        "carry_pot": 6,
+        "revealed_cards": {
+          "A": {
+            "rank": 2,
+            "suit": "S"
+          },
+          "B": {
+            "rank": 14,
+            "suit": "H"
+          },
+          "C": {
+            "rank": 10,
+            "suit": "S"
+          }
+        },
+        "eliminated": [],
+        "game_winner": null,
+        "finished": false
+      }
+    ],
+    "result": {
+      "winner": null,
+      "draw": true,
+      "pot": 6,
+      "carry_pot": 6,
+      "revealed_cards": {
+        "A": {
+          "rank": 2,
+          "suit": "S"
+        },
+        "B": {
+          "rank": 14,
+          "suit": "H"
+        },
+        "C": {
+          "rank": 10,
+          "suit": "S"
+        }
+      },
+      "eliminated": []
+    }
+  },
+  {
+    "id": "seed-16",
+    "source": "seed",
+    "round_id": 16,
+    "events": [
+      {
+        "event_id": 1,
+        "round_id": 16,
+        "type": "RoundStarted",
+        "order": [
+          "A",
+          "B",
+          "C"
+        ],
+        "pot": 6
+      },
+      {
+        "event_id": 2,
+        "round_id": 16,
+        "type": "Speech",
+        "player_id": "A",
+        "channel": "game",
+        "text": "높은 카드라고 생각해.",
+        "target": null,
+        "request_id": "A-speech"
+      },
+      {
+        "event_id": 3,
+        "round_id": 16,
+        "type": "Speech",
+        "player_id": "B",
+        "channel": "game",
+        "text": "나는 이번에는 물러날 수도 있어.",
+        "target": null,
+        "request_id": "B-speech"
+      },
+      {
+        "event_id": 4,
+        "round_id": 16,
+        "type": "Speech",
+        "player_id": "C",
+        "channel": "game",
+        "text": "그 주장을 확인해보자.",
+        "target": null,
+        "request_id": "C-speech"
+      },
+      {
+        "event_id": 5,
+        "round_id": 16,
+        "type": "BetPlaced",
+        "player_id": "A",
+        "action": "raise",
+        "amount": 4,
+        "contributions": {
+          "A": 4,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 4,
+        "pot": 10
+      },
+      {
+        "event_id": 6,
+        "round_id": 16,
+        "type": "BetPlaced",
+        "player_id": "B",
+        "action": "fold",
+        "amount": 0,
+        "contributions": {
+          "A": 4,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 4,
+        "pot": 10
+      },
+      {
+        "event_id": 7,
+        "round_id": 16,
+        "type": "BetPlaced",
+        "player_id": "C",
+        "action": "call",
+        "amount": 0,
+        "contributions": {
+          "A": 4,
+          "B": 0,
+          "C": 4
+        },
+        "current_bet": 4,
+        "pot": 14
+      },
+      {
+        "event_id": 8,
+        "round_id": 16,
+        "type": "RoundEnded",
+        "winner": "C",
+        "draw": false,
+        "pot": 14,
+        "carry_pot": 0,
+        "revealed_cards": {
+          "A": {
+            "rank": 7,
+            "suit": "C"
+          },
+          "C": {
+            "rank": 10,
+            "suit": "D"
+          }
+        },
+        "eliminated": [],
+        "game_winner": null,
+        "finished": false
+      }
+    ],
+    "result": {
+      "winner": "C",
+      "draw": false,
+      "pot": 14,
+      "carry_pot": 0,
+      "revealed_cards": {
+        "A": {
+          "rank": 7,
+          "suit": "C"
+        },
+        "C": {
+          "rank": 10,
+          "suit": "D"
+        }
+      },
+      "eliminated": []
+    }
+  },
+  {
+    "id": "seed-17",
+    "source": "seed",
+    "round_id": 17,
+    "events": [
+      {
+        "event_id": 1,
+        "round_id": 17,
+        "type": "RoundStarted",
+        "order": [
+          "A",
+          "B",
+          "C"
+        ],
+        "pot": 6
+      },
+      {
+        "event_id": 2,
+        "round_id": 17,
+        "type": "Speech",
+        "player_id": "A",
+        "channel": "game",
+        "text": "이번에는 자신 있어.",
+        "target": null,
+        "request_id": "A-speech"
+      },
+      {
+        "event_id": 3,
+        "round_id": 17,
+        "type": "Speech",
+        "player_id": "B",
+        "channel": "game",
+        "text": "그 말이 진짜일까?",
+        "target": null,
+        "request_id": "B-speech"
+      },
+      {
+        "event_id": 4,
+        "round_id": 17,
+        "type": "Speech",
+        "player_id": "C",
+        "channel": "game",
+        "text": "공개까지 가보자.",
+        "target": null,
+        "request_id": "C-speech"
+      },
+      {
+        "event_id": 5,
+        "round_id": 17,
+        "type": "BetPlaced",
+        "player_id": "A",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 6,
+        "round_id": 17,
+        "type": "BetPlaced",
+        "player_id": "B",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 7,
+        "round_id": 17,
+        "type": "BetPlaced",
+        "player_id": "C",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 8,
+        "round_id": 17,
+        "type": "RoundEnded",
+        "winner": "A",
+        "draw": false,
+        "pot": 6,
+        "carry_pot": 0,
+        "revealed_cards": {
+          "A": {
+            "rank": 9,
+            "suit": "S"
+          },
+          "B": {
+            "rank": 4,
+            "suit": "H"
+          },
+          "C": {
+            "rank": 3,
+            "suit": "C"
+          }
+        },
+        "eliminated": [],
+        "game_winner": null,
+        "finished": false
+      }
+    ],
+    "result": {
+      "winner": "A",
+      "draw": false,
+      "pot": 6,
+      "carry_pot": 0,
+      "revealed_cards": {
+        "A": {
+          "rank": 9,
+          "suit": "S"
+        },
+        "B": {
+          "rank": 4,
+          "suit": "H"
+        },
+        "C": {
+          "rank": 3,
+          "suit": "C"
+        }
+      },
+      "eliminated": []
+    }
+  },
+  {
+    "id": "seed-18",
+    "source": "seed",
+    "round_id": 18,
+    "events": [
+      {
+        "event_id": 1,
+        "round_id": 18,
+        "type": "RoundStarted",
+        "order": [
+          "A",
+          "B",
+          "C"
+        ],
+        "pot": 6
+      },
+      {
+        "event_id": 2,
+        "round_id": 18,
+        "type": "Speech",
+        "player_id": "A",
+        "channel": "game",
+        "text": "숫자는 비슷해 보이네.",
+        "target": null,
+        "request_id": "A-speech"
+      },
+      {
+        "event_id": 3,
+        "round_id": 18,
+        "type": "Speech",
+        "player_id": "B",
+        "channel": "game",
+        "text": "문양도 중요하지.",
+        "target": null,
+        "request_id": "B-speech"
+      },
+      {
+        "event_id": 4,
+        "round_id": 18,
+        "type": "Speech",
+        "player_id": "C",
+        "channel": "game",
+        "text": "나는 계속 참여할게.",
+        "target": null,
+        "request_id": "C-speech"
+      },
+      {
+        "event_id": 5,
+        "round_id": 18,
+        "type": "BetPlaced",
+        "player_id": "A",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 6,
+        "round_id": 18,
+        "type": "BetPlaced",
+        "player_id": "B",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 7,
+        "round_id": 18,
+        "type": "BetPlaced",
+        "player_id": "C",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 8,
+        "round_id": 18,
+        "type": "RoundEnded",
+        "winner": "C",
+        "draw": false,
+        "pot": 6,
+        "carry_pot": 0,
+        "revealed_cards": {
+          "A": {
+            "rank": 9,
+            "suit": "C"
+          },
+          "B": {
+            "rank": 9,
+            "suit": "D"
+          },
+          "C": {
+            "rank": 9,
+            "suit": "S"
+          }
+        },
+        "eliminated": [],
+        "game_winner": null,
+        "finished": false
+      }
+    ],
+    "result": {
+      "winner": "C",
+      "draw": false,
+      "pot": 6,
+      "carry_pot": 0,
+      "revealed_cards": {
+        "A": {
+          "rank": 9,
+          "suit": "C"
+        },
+        "B": {
+          "rank": 9,
+          "suit": "D"
+        },
+        "C": {
+          "rank": 9,
+          "suit": "S"
+        }
+      },
+      "eliminated": []
+    }
+  },
+  {
+    "id": "seed-19",
+    "source": "seed",
+    "round_id": 19,
+    "events": [
+      {
+        "event_id": 1,
+        "round_id": 19,
+        "type": "RoundStarted",
+        "order": [
+          "A",
+          "B",
+          "C"
+        ],
+        "pot": 6
+      },
+      {
+        "event_id": 2,
+        "round_id": 19,
+        "type": "Speech",
+        "player_id": "A",
+        "channel": "game",
+        "text": "에이스만 강한 건 아니야.",
+        "target": null,
+        "request_id": "A-speech"
+      },
+      {
+        "event_id": 3,
+        "round_id": 19,
+        "type": "Speech",
+        "player_id": "B",
+        "channel": "game",
+        "text": "순환 관계를 조심해야겠네.",
+        "target": null,
+        "request_id": "B-speech"
+      },
+      {
+        "event_id": 4,
+        "round_id": 19,
+        "type": "Speech",
+        "player_id": "C",
+        "channel": "game",
+        "text": "쉽게 판단 못 하겠어.",
+        "target": null,
+        "request_id": "C-speech"
+      },
+      {
+        "event_id": 5,
+        "round_id": 19,
+        "type": "BetPlaced",
+        "player_id": "A",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 6,
+        "round_id": 19,
+        "type": "BetPlaced",
+        "player_id": "B",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 7,
+        "round_id": 19,
+        "type": "BetPlaced",
+        "player_id": "C",
+        "action": "check",
+        "amount": 0,
+        "contributions": {
+          "A": 0,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 0,
+        "pot": 6
+      },
+      {
+        "event_id": 8,
+        "round_id": 19,
+        "type": "RoundEnded",
+        "winner": null,
+        "draw": true,
+        "pot": 6,
+        "carry_pot": 6,
+        "revealed_cards": {
+          "A": {
+            "rank": 2,
+            "suit": "C"
+          },
+          "B": {
+            "rank": 14,
+            "suit": "H"
+          },
+          "C": {
+            "rank": 9,
+            "suit": "S"
+          }
+        },
+        "eliminated": [],
+        "game_winner": null,
+        "finished": false
+      }
+    ],
+    "result": {
+      "winner": null,
+      "draw": true,
+      "pot": 6,
+      "carry_pot": 6,
+      "revealed_cards": {
+        "A": {
+          "rank": 2,
+          "suit": "C"
+        },
+        "B": {
+          "rank": 14,
+          "suit": "H"
+        },
+        "C": {
+          "rank": 9,
+          "suit": "S"
+        }
+      },
+      "eliminated": []
+    }
+  },
+  {
+    "id": "seed-20",
+    "source": "seed",
+    "round_id": 20,
+    "events": [
+      {
+        "event_id": 1,
+        "round_id": 20,
+        "type": "RoundStarted",
+        "order": [
+          "A",
+          "B",
+          "C"
+        ],
+        "pot": 6
+      },
+      {
+        "event_id": 2,
+        "round_id": 20,
+        "type": "Speech",
+        "player_id": "A",
+        "channel": "game",
+        "text": "높은 카드라고 생각해.",
+        "target": null,
+        "request_id": "A-speech"
+      },
+      {
+        "event_id": 3,
+        "round_id": 20,
+        "type": "Speech",
+        "player_id": "B",
+        "channel": "game",
+        "text": "나는 이번에는 물러날 수도 있어.",
+        "target": null,
+        "request_id": "B-speech"
+      },
+      {
+        "event_id": 4,
+        "round_id": 20,
+        "type": "Speech",
+        "player_id": "C",
+        "channel": "game",
+        "text": "그 주장을 확인해보자.",
+        "target": null,
+        "request_id": "C-speech"
+      },
+      {
+        "event_id": 5,
+        "round_id": 20,
+        "type": "BetPlaced",
+        "player_id": "A",
+        "action": "raise",
+        "amount": 5,
+        "contributions": {
+          "A": 5,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 5,
+        "pot": 11
+      },
+      {
+        "event_id": 6,
+        "round_id": 20,
+        "type": "BetPlaced",
+        "player_id": "B",
+        "action": "fold",
+        "amount": 0,
+        "contributions": {
+          "A": 5,
+          "B": 0,
+          "C": 0
+        },
+        "current_bet": 5,
+        "pot": 11
+      },
+      {
+        "event_id": 7,
+        "round_id": 20,
+        "type": "BetPlaced",
+        "player_id": "C",
+        "action": "call",
+        "amount": 0,
+        "contributions": {
+          "A": 5,
+          "B": 0,
+          "C": 5
+        },
+        "current_bet": 5,
+        "pot": 16
+      },
+      {
+        "event_id": 8,
+        "round_id": 20,
+        "type": "RoundEnded",
+        "winner": "C",
+        "draw": false,
+        "pot": 16,
+        "carry_pot": 0,
+        "revealed_cards": {
+          "A": {
+            "rank": 8,
+            "suit": "C"
+          },
+          "C": {
+            "rank": 10,
+            "suit": "D"
+          }
+        },
+        "eliminated": [],
+        "game_winner": null,
+        "finished": false
+      }
+    ],
+    "result": {
+      "winner": "C",
+      "draw": false,
+      "pot": 16,
+      "carry_pot": 0,
+      "revealed_cards": {
+        "A": {
+          "rank": 8,
+          "suit": "C"
+        },
+        "C": {
+          "rank": 10,
+          "suit": "D"
+        }
+      },
+      "eliminated": []
+    }
+  }
+]

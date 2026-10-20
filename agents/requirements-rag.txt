@@ -1,0 +1,2 @@
+# 기존 requirements.txt에 더해 선택 설치. 엔진/메모 도구에는 불필요.
+chromadb>=1.0,<2

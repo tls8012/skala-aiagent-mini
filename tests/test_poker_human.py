@@ -91,6 +91,85 @@ class HumanTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(table.round.conversation.counts['human'],1)
         self.assertEqual((await runner.submit_human('human',self.command(table,'late',text='끝?'))).status,'rejected')
 
+    async def test_folded_ai_reacts_broadcasts_and_answers_human_chat(self):
+        table = Table(['A', 'B', 'C'], 'human', config=self.config)
+        table.start_round()
+        for pid in table.round.order:
+            table.submit(pid, self.command(table, f'initial-{pid}', text='참가'))
+        table.submit('A', self.command(table, 'fold-a', 'bet', bet=Bet(action='fold')))
+        heard = set()
+
+        class Backend(ScriptedPokerLLM):
+            spoke_after_fold = False
+
+            async def research(self, observation, event):
+                # 알림이 최신 베팅 사건으로 합쳐져도 새 발언은 관찰 컨텍스트에 남아야 한다.
+                if any(message['text'] == '폴드했지만 B가 수상해' for message in observation.messages):
+                    heard.add(self.player_id)
+                return {}
+
+            async def decide(self, observation, research, force_bet=False, feedback=''):
+                if self.player_id == 'A' and 'A' in observation.folded_players and not self.spoke_after_fold:
+                    self.spoke_after_fold = True
+                    return AgentDecision(round_id=observation.round_id, basis_event=observation.event_id,
+                                         speech='speak', text='폴드했지만 B가 수상해')
+                return await super().decide(observation, research, force_bet, feedback)
+
+        runner, task = await self.start(table, Backend, interpreter=Interpreter())
+        await self.spin_until(lambda: not runner._tasks and table.round.betting.turn == 'human')
+        self.assertTrue({'B', 'C'} <= heard)
+        self.assertEqual(table.round.conversation.counts['A'], 2)
+        self.assertTrue(any(e.get('text') == '폴드했지만 B가 수상해' for e in table.events))
+        result = await runner.submit_human('human', self.command(table, 'ask-folded-a',
+                                                                 text='A야 날씨 어때?', target='A'))
+        self.assertEqual(result.status, 'accepted')
+        await self.spin_until(lambda: 'ask-folded-a' not in table.round.conversation.chat_replies and not runner._tasks)
+        self.assertTrue(any(e['type'] == 'Speech' and e['player_id'] == 'A' and e['channel'] == 'chat'
+                            for e in table.events))
+        self.assertEqual(table.round.conversation.counts['A'], 2)  # AI 잡담은 게임 발언을 쓰지 않는다.
+        await self.finish(runner, task)
+        self.assertEqual(runner.errors, {})
+        self.assertNotIn('A', table.round.result['revealed_cards'])
+
+    async def test_folded_human_can_speak_and_receive_ai_reply_while_betting_continues(self):
+        table = Table(['A', 'B'], 'human', config=self.config)
+        table.start_round()
+        for pid in table.round.order:
+            table.submit(pid, self.command(table, f'initial-{pid}', text='참가'))
+        table.submit('A', self.command(table, 'a-check', 'bet', bet=Bet(action='check')))
+        table.submit('B', self.command(table, 'b-raise', 'bet', bet=Bet(action='raise', raise_size='small')))
+        table.submit('human', self.command(table, 'human-fold', 'bet', bet=Bet(action='fold')))
+        table.submit('B', self.command(table, 'b-comment', text='이제 A의 선택을 보자'))
+        release, entered = asyncio.Event(), asyncio.Event()
+
+        class Backend(ScriptedPokerLLM):
+            async def decide(self, observation, research, force_bet=False, feedback=''):
+                if self.player_id == 'A':
+                    entered.set()
+                    await release.wait()
+                return await super().decide(observation, research, force_bet, feedback)
+
+        interpreter = Interpreter()
+        runner, task = await self.start(table, Backend, interpreter=interpreter)
+        await asyncio.wait_for(entered.wait(), 3)
+        self.assertTrue(table.observe('human').can_speak)
+        result = await runner.submit_human('human', self.command(table, 'folded-question',
+                                                                 text='B야 날씨 어때?', target='B'))
+        self.assertEqual(result.status, 'accepted')
+        await self.spin_until(lambda: 'folded-question' not in table.round.conversation.chat_replies)
+        self.assertEqual(interpreter.calls, ['B야 날씨 어때?'])
+        self.assertEqual(table.round.conversation.counts['human'], 2)
+        self.assertEqual((await runner.submit_human('human', self.command(
+            table, 'folded-bet', 'bet', bet=Bet(action='call')))).status, 'rejected')
+        self.assertFalse(task.done())
+        release.set()
+        await asyncio.wait_for(task, 3)
+        self.assertEqual(runner.errors, {})
+        self.assertFalse(table.observe('human').can_speak)
+        self.assertNotIn('human', table.round.result['revealed_cards'])
+        self.assertEqual((await runner.submit_human('human', self.command(
+            table, 'after-reveal', text='끝난 뒤 발언'))).status, 'rejected')
+
     async def test_human_input_is_processed_while_an_ai_is_thinking(self):
         table=Table(['A','B'],'human',config=self.config)
         release=asyncio.Event()

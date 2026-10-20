@@ -187,6 +187,54 @@ class PokerTest(PokerFixture, unittest.TestCase):
         self.assertEqual(set(archive['result']['revealed_cards']),{'C'})
         self.assertEqual(self.command(t,'C','speak',text='끝?').status,'rejected')
 
+    def test_folded_player_can_speak_defer_and_exhaust_quota_but_not_bet(self):
+        t = self.table()
+        t.start_round()
+        self.speak_all(t)
+        self.assertEqual(self.command(t, 'A', 'bet', bet=Bet(action='fold')).status, 'accepted')
+        observation = t.observe('A')
+        self.assertTrue(observation.can_speak)
+        self.assertEqual(observation.folded_players, ['A'])
+        self.assertEqual(observation.allowed_bets, [])
+        self.assertEqual(observation.raise_options, {})
+        self.assertNotIn('A', t.observe('B').visible_cards)
+        before = (t.event_id, t.round.pot, t.players['A'].chips, t.round.betting.turn)
+        for bet in [Bet(action='check'), Bet(action='call'), Bet(action='fold'),
+                    Bet(action='raise', raise_size='small')]:
+            self.assertEqual(self.command(t, 'A', 'bet', bet=bet).status, 'rejected')
+        self.assertEqual(before, (t.event_id, t.round.pot, t.players['A'].chips, t.round.betting.turn))
+
+        self.command(t, 'B', 'silent')
+        self.command(t, 'C', 'silent')
+        self.assertFalse(t.observe('B').dialogue_quiet)  # 폴드한 A도 대화 참가자다.
+        self.assertEqual(self.command(t, 'A', 'silent').status, 'accepted')
+        self.assertTrue(t.observe('B').dialogue_quiet)
+        self.assertEqual(self.command(t, 'A', 'speak', text='폴드했어도 B는 수상해').status, 'accepted')
+        self.assertFalse(t.observe('B').dialogue_quiet)
+        self.assertEqual(self.command(t, 'A', 'speak', text='이 말은 보류').status, 'deferred')
+        self.command(t, 'B', 'speak', text='왜 그렇게 생각해?')
+        self.assertEqual(t.release_deferred('A', t.event_id).status, 'accepted')
+        for _ in range(2):
+            self.command(t, 'B', 'speak', text='다른 이유도 있어?')
+            self.assertEqual(self.command(t, 'A', 'speak', text='너의 반응이 수상해').status, 'accepted')
+        self.assertEqual(t.round.conversation.counts['A'], t.config.max_utterances)
+        self.command(t, 'C', 'speak', text='그만 들을게')
+        self.assertFalse(t.observe('A').can_speak)
+        self.assertEqual(self.command(t, 'A', 'speak', text='한도 초과').status, 'rejected')
+        self.finish_checks(t)
+        self.assertFalse(t.observe('A').can_speak)
+        self.assertEqual(self.command(t, 'A', 'speak', text='공개 후 발언').status, 'rejected')
+        self.assertNotIn('A', t.round.result['revealed_cards'])
+
+    def test_failed_agent_remains_unable_to_speak_after_folding(self):
+        t = self.table()
+        t.start_round()
+        self.speak_all(t)
+        self.command(t, 'A', 'bet', bet=Bet(action='fold'))
+        t.fail_agent('A')
+        self.assertFalse(t.observe('A').can_speak)
+        self.assertEqual(self.command(t, 'A', 'speak', text='오류 난 모델').status, 'rejected')
+
     def test_deferred_speech_requires_explicit_revalidation(self):
         t=self.table()
         t.start_round()

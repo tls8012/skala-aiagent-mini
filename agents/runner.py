@@ -32,8 +32,8 @@ class RoundRunner:
         self._inbox: asyncio.Queue = asyncio.Queue()
 
     def _active(self) -> list[str]:
-        """그래프를 실행할 수 있는 AI만 반환한다. 인간의 생존 여부는 Table이 관리."""
-        return [pid for pid in self.table.round.betting.alive
+        """폴드 후에도 대화하는 이번 라운드의 정상 AI를 반환한다."""
+        return [pid for pid in self.table.round.order
                 if self.table.players[pid].kind == 'ai' and not self.table.players[pid].failed]
 
     @staticmethod
@@ -83,7 +83,7 @@ class RoundRunner:
                 self._turn_signal = signal
                 if pid not in self._tasks and pid not in self._pending:
                     self._enqueue(pid, {'type': 'BetTurn', 'event_id': self.table.event_id},
-                                  r.conversation.quiet(r.betting.alive))
+                                  r.conversation.quiet(r.order))
 
     def _launch(self):
         for pid in self._active():
@@ -184,7 +184,7 @@ class RoundRunner:
     async def _prepare_human_command(self, pid, command) -> CommandResult:
         r = self.table.round
         interpretation = None
-        if command.round_id != r.number or pid not in r.betting.alive or self.table.players[pid].failed:
+        if command.round_id != r.number or pid not in r.order or self.table.players[pid].failed:
             return self.table._result('rejected', 'round closed or player cannot act')
         if command.kind == 'speak':
             if len(command.text) > self.table.config.max_message_chars or r.conversation.exhausted(pid):

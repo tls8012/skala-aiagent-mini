@@ -101,8 +101,10 @@ class Table:
         r = self.round
         if r is None or r.phase != 'dialogue' or cmd.round_id != r.number:
             return self._result('rejected', 'round is not open')
-        if pid not in r.order or pid in r.betting.folded or self.players[pid].failed:
+        if pid not in r.order or self.players[pid].failed:
             return self._result('rejected', 'player cannot act')
+        if cmd.kind == 'bet' and pid in r.betting.folded:
+            return self._result('rejected', 'folded player cannot bet')
         if cmd.basis_event > self.event_id:
             return self._result('rejected', 'future event ID')
         c = r.conversation
@@ -207,7 +209,7 @@ class Table:
             cmd = r.conversation.deferred.get(pid)
             if cmd is None:
                 return self._result('rejected', 'no deferred speech')
-            if pid in r.betting.folded or self.players[pid].failed:
+            if pid not in r.order or self.players[pid].failed:
                 r.conversation.deferred.pop(pid)
                 r.conversation.deferred_interpretations.pop(pid, None)
                 return self._result('rejected', 'player cannot act')
@@ -276,6 +278,7 @@ class Table:
             if not r or pid not in self.players:
                 raise ValueError('unknown player or no round')
             c = r.conversation
+            participant = pid in r.order and not self.players[pid].failed
             active = pid in r.betting.alive and not self.players[pid].failed
             visible = (r.result['revealed_cards'] if r.result else {
                 other: card.to_dict() for other, card in r.cards.items()
@@ -288,12 +291,13 @@ class Table:
                 betting_open=r.betting_open and r.phase == 'dialogue',
                 allowed_bets=r.betting.allowed(pid) if active and r.betting_open else [],
                 raise_options=r.betting.raise_options(pid) if active and r.betting_open else {},
-                can_speak=active and r.phase == 'dialogue' and not c.exhausted(pid)
+                can_speak=participant and r.phase == 'dialogue' and not c.exhausted(pid)
                           and c.last_speaker != pid,
                 required_game_utterances=max(0, self.config.min_utterances-c.game_counts.get(pid, 0)),
                 last_speaker=c.last_speaker,
                 remaining_utterances=max(0, self.config.max_utterances - c.counts.get(pid, 0)),
-                dialogue_quiet=c.quiet(r.betting.alive), messages=c.context(),
+                dialogue_quiet=c.quiet(r.order), messages=c.context(),
+                folded_players=[other for other in r.order if other in r.betting.folded],
                 failed_agents=[p.id for p in self.players.values() if p.failed], result=r.result).model_copy(deep=True)
 
     def _archive(self):

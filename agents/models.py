@@ -139,6 +139,7 @@ class Observation(Contract):
     dialogue_quiet: bool
     messages: list[dict[str, Any]]
     failed_agents: list[str]
+    folded_players: list[str] = Field(default_factory=list)
     result: dict[str, Any] | None
 
 

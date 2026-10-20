@@ -583,3 +583,140 @@ text, usage = await llm.complete(system, user, schema=schema)
   두 라운드가 총 24개 청크로 색인되었고 실제 질의에서 ready 상태와 결과 3개,
   event_id/chunk_index/chunk_count 메타데이터를 확인했다.
 - 실제 모델 검증 데이터는 임시 폴더에만 기록했다. 판단 모델을 호출하거나 그래프를 구현하지 않았다.
+
+### 참가자 그래프 스켈레톤과 AI-only 실행기
+
+#### 파일별 편집 지점
+
+| 파일 | 역할 | 사용자가 바꿀 지점 |
+|---|---|---|
+| `agents/graph.py` | StateGraph의 상태·노드·edge 구성 | `build_graph()`의 노드 연결, 검증 분기, 추가 단계 |
+| `agents/poker_llm.py` | 노드가 호출하는 게임 업무 구현 | `PokerLLM.route/research/chat/decide/remember`, `DecisionDraft` 스키마와 프롬프트 |
+| `agents/runner.py` | 여러 참가자 그래프를 독립 실행하고 Table에 결과 적용 | `RoundRunner.run_round()`. 게임 규칙이나 프롬프트는 여기 넣지 않음 |
+| `agents/demo.py` | CLI 조립과 공개 사건 출력 | fake/ollama 모드 선택, 인원·모델·라운드·기록 경로 지정 |
+
+기존 메모 자동 첨부 `PlayerLLM`은 그대로 사용한다. `PokerLLM`은 그 위의 업무 계층이다.
+
+```text
+Runner → 참가자별 graph
+                ↓
+             PokerLLM       업무 프롬프트·조회 정책·판단 결과 구성
+                ↓
+             PlayerLLM      매 호출 round/game/long 개인 메모 첨부
+                ↓
+             OllamaLLM      재사용 HTTP/JSON 통신
+```
+
+#### 기본 그래프
+
+```text
+START → route ── 인간의 명시적 잡담 ───────────────┐
+             └─ 게임 → research ─────────────────┤
+                                                 ↓
+                                               answer
+                                                 ↓
+                                               validate
+                                               ↙      ↘
+                                    오류 피드백/재시도   remember → END
+                                           └→ answer
+```
+
+- `route_node`: 검증된 인간의 channel=chat 발언이 자신을 지목했으면 일반 채팅 경로.
+  raw 자연어의 의미 분류를 추가할 위치를 TODO로 표시했다.
+- `research_node`: 기본은 상대 게임 발언을 과거 경험에서 검색한다. 배분·차례 알림은 건너뛴다.
+  검색 필요 판단과 질의 전략은 `PokerLLM.research()`에서 확장한다.
+- `answer_node`: 일반 대화는 `chat()`, 게임은 `decide()` 호출.
+  LLM에 라운드/사건 ID를 생성하게 하지 않고 관찰 정보에서 붙인다.
+- `validate_node`: 최소 발언, 현재 발언/베팅 가능 여부, 출력 길이, 채팅 응답 대상 등을 검사.
+  실패 시 피드백과 함께 다시 answer로 이동한다. `config.graph_max_attempts` 기본 3회 이후 실패 처리.
+- `remember_node`: 짧은 판단 요약을 write_memo로 저장할 확장 지점.
+  **기본 구현은 아무것도 쓰지 않고 기존 메모를 유지한다.** 메모 생성/요약 정책은 사용자 작업이다.
+
+전략은 완성된 최적 플레이가 아닌 실행 가능한 기본 프롬프트다. 성격·블러핑·동맹·발언 의사·
+베팅 전략을 바꿀 위치에 TODO를 표시했다. 그래프 입력은 observation/event/force_bet이고,
+반환은 `{"decision": AgentDecision에 맞는 dict}`다.
+`GraphInput/AgentState/GraphOutput`은 TypedDict, 입출력 내용은 기존 Pydantic 계약으로 검증한다.
+
+#### 실행기와 테이블 연결
+
+`RoundRunner(table, graphs, on_event=None)`에 참가자 ID → 컴파일된 그래프 매핑을 준다.
+같은 그래프 정의를 참가자별 backend로 구성하며, 런타임 상태는 각각 독립적이다.
+
+1. 라운드를 시작하고 사건을 필요한 참가자에게 전달한다.
+2. 참가자별로 asyncio task를 시작한다. 같은 참가자의 작업은 동시에 하나만 실행한다.
+3. 작업 중 도착한 사건은 참가자별 최신 대기 사건으로 모은다.
+4. 먼저 끝난 결과부터 `Table.apply_decision()`에 적용한다. 전원 완료를 기다려 모으지 않는다.
+5. 새로운 게임 발언·베팅은 필요한 참가자를 다시 깨운다. 침묵 선언끼리는 서로를 깨우지 않는다.
+6. 오래된 제안에 rejudge가 반환되면 최신 관찰 정보로 다시 실행한다.
+7. 연속 발언으로 보류된 문장을 재판단할 때는 옛 문장을 자동 공개하지 않고 새 판단으로 교체한다.
+8. 진행 중 판단도 추가 발언 제안도 없으면 현재 베팅 차례 참가자에게 force_bet=True로 행동을 요구한다.
+   시간 경과로 침묵이나 공개를 결정하지 않는다.
+9. 그래프/통신 오류 참가자는 `fail_agent()`로 표시하고 기존 무료 체크/유료면 폴드 정책을 적용한다.
+10. 공개되면 남은 작업을 취소·정리한다. 선택적으로 종료 기록을 MCP에 전달한다.
+
+`runner_max_decisions` 기본 120은 디버그 실행 상한이다. 무한 레이즈/재판단 같은 정책 오류에서
+승패를 조작하거나 전체 참가자를 강제 폴드시키지 않고 실행 오류를 보고한다.
+현재 runner는 AI-only이며 인간 입력 대기·일반 잡담 스케줄링·서버/UI는 아직 연결하지 않았다.
+일반 채팅 그래프 경로 자체는 직접 호출하여 검증했다.
+
+`Observation`에는 required_game_utterances와 last_speaker를 추가해 그래프가 엔진 내부 상태를
+뒤지지 않아도 된다. 이미 침묵 상태인 참가자의 반복 선언은 새 사건을 만들지 않는다.
+`Table.discard_deferred()`는 새 판단으로 보류 발언을 교체하는 연결점이다.
+
+#### 실행 방법
+
+```sh
+# 외부 모델·MCP 없이 실제 StateGraph와 runner 연결을 확인
+.venv/bin/python -m agents.demo --mode fake --seed 7
+
+# config.ollama_model(현재 qwen3:8b)로 실제 AI 플레이
+.venv/bin/python -m agents.demo --mode ollama --players 3 --rounds 1
+
+# 모델 교체 및 종료 경험 색인 예약
+.venv/bin/python -m agents.demo --mode ollama --model qwen3:8b --publish-memory
+```
+
+fake는 고정 정책이며 응답 품질 검증용이 아니다. 기본 참가자별 최소 1회 발언 후 체크/콜한다.
+공개 발언·베팅·실패·카드 결과는 진행 중 출력하고, 각 라운드 원문은 기존처럼 저장한다.
+종료 경험을 MCP로 보내려면 `--publish-memory`를 사용한다. 이를 생략해도 원문 기록은 저장된다.
+
+#### _old 재사용과 설정 전달
+
+사용자가 보관한 `_old/agent/`에서 `ollama_client.py`, `mcp_client.py` 두 파일만
+활성 `agent/`로 복사해 재사용했다. 기존 업무 코드와 옛 서버는 계속 `_old`에 둔다.
+옛 Ollama 회귀 테스트는 `_old.agent.*` 경로를 참조하도록 조정하여 테스트 수집을 유지했다.
+MCPClient 기본 ops/docs 매핑은 바꾸지 않고, 데모에서 poker 서버 경로를 명시적으로 주입한다.
+
+`export_mcp_config()`와 `load_mcp_config()`는 기존 MCP subprocess의 환경 상속을 이용해
+동일한 GameConfig를 전달한다. 데모의 data-dir/메모 한도/임베딩 모델 변경이 subprocess에도
+반영된다. 외부 서버에서 조립할 때도 같은 방식을 쓰거나 설정을 직접 주입하면 된다.
+
+#### 검증
+
+- 전체 unittest 41개 통과.
+- 느린 A의 판단을 대기시키고 B의 공개 발언 이후에만 A를 풀어주는 테스트로,
+  다른 참가자를 기다리는 일괄 응답 구조가 아님을 확인했다.
+- 최소 발언/형식 오류의 제한된 재시도, 인간 일반 채팅 분기, 그래프 실패 시 라운드 진행,
+  다음 라운드 좌석 회전, 무한 레이즈 디버그 상한과 작업 정리를 검사했다.
+- fake 데모에서 AI 3명의 독립 그래프가 발언·체크 후 한 라운드 완료함을 확인했다.
+
+
+실모델 검증 중 첫 발언의 text를 생략하는 출력을 발견하여 `DecisionDraft`의
+speech/text/bet/wait_for_dialogue를 모두 필수로 만들었다. 관찰 정보에 따라
+최소 발언이 남으면 speech=speak, 발언 불가면 빈 text, 내 차례가 아니면 bet=null,
+강제 베팅 차례면 bet 필수 및 허용 action 목록으로 JSON 스키마를 좁힌다.
+코드 검증도 유지하며 스키마만으로 업무 규칙을 전부 보장한다고 가정하지 않는다.
+
+디버그 생성 제어를 config에 추가했다.
+
+- `ollama_think=False`: 게임에서는 기본적으로 별도 thinking 생성을 끈다.
+  True로 켜거나 None으로 모델 기본 동작을 사용할 수 있다.
+- `ollama_num_predict=512`: 한 호출의 최대 생성 토큰 수. 긴 답변/추론 실험 시 조절한다.
+
+활성 `agent/ollama_client.py`는 기존 통신 로직에 선택 인자 think/num_predict 전달만 추가했다.
+인자를 생략한 호출은 이전 payload를 유지한다. `PlayerLLM`이 게임 설정을 전달한다.
+관련 API 계약은 [Ollama chat](https://docs.ollama.com/api/chat)을 참고했다.
+
+실제 로컬 qwen3:8b + MCP로 AI 두 명이 발언·체크·공개까지 완료했다.
+추론 실패 참가자 없이 10회 판단 실행으로 한 라운드를 마쳤다. 실행 데이터는 임시 경로에만
+저장했다. 이 검증은 기본 배선·출력 계약의 확인이며 블러핑/대화 전략의 품질 보장은 아니다.

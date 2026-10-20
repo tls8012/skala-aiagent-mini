@@ -119,6 +119,8 @@ class Table:
                 return self._result('rejected', 'stale silence decision', True)
             if c.game_counts[pid] < self.config.min_utterances and not c.exhausted(pid):
                 return self._result('rejected', 'minimum game speech not met')
+            if pid in c.silent:
+                return self._result('accepted', 'already silent')
             c.silent.add(pid)
             self._emit('PlayerSilent', player_id=pid)
         else:
@@ -189,6 +191,12 @@ class Table:
             self._advance_failed()
             return self._result('accepted')
 
+    def discard_deferred(self, pid: str):
+        """새 그래프 판단으로 교체할 때 아직 공개하지 않은 발언을 버린다."""
+        with self._lock:
+            if self.round:
+                self.round.conversation.deferred.pop(pid, None)
+
     def fail_agent(self, pid: str):
         with self._lock:
             if pid not in self.players or self.players[pid].kind != 'ai':
@@ -245,6 +253,8 @@ class Table:
                 allowed_bets=r.betting.allowed(pid) if active and r.betting_open else [],
                 can_speak=active and r.phase == 'dialogue' and not c.exhausted(pid)
                           and c.last_speaker != pid,
+                required_game_utterances=max(0, self.config.min_utterances-c.game_counts.get(pid, 0)),
+                last_speaker=c.last_speaker,
                 remaining_utterances=max(0, self.config.max_utterances - c.counts.get(pid, 0)),
                 dialogue_quiet=c.quiet(r.betting.alive), messages=c.context(),
                 failed_agents=[p.id for p in self.players.values() if p.failed], result=r.result).model_copy(deep=True)

@@ -7,10 +7,13 @@ OLLAMA_URL = "http://127.0.0.1:11434/api/chat"
 
 
 class OllamaLLM:
-    def __init__(self, model: str, usd_per_1k_tokens: float):
+    def __init__(self, model: str, usd_per_1k_tokens: float, *,
+                 think: bool | None = None, num_predict: int | None = None):
         self.name = f"ollama:{model}"
         self.model = model
         self.usd_per_1k = usd_per_1k_tokens
+        self.think = think
+        self.num_predict = num_predict
 
     def _payload(self, system: str, user: str, *, stream: bool,
                  schema: dict | None = None) -> dict:
@@ -21,6 +24,10 @@ class OllamaLLM:
             "stream": stream,
             "options": {"temperature": 0.0},
         }
+        if self.think is not None:
+            payload["think"] = self.think
+        if self.num_predict is not None:
+            payload["options"]["num_predict"] = self.num_predict
         if schema is not None:
             payload["format"] = schema
         return payload

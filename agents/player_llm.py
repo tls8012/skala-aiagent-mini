@@ -11,7 +11,8 @@ class PlayerLLM:
         self.mcp = mcp
         self.player_id = player_id
         self.client = client if client is not None else OllamaLLM(
-            table.config.ollama_model, table.config.ollama_usd_per_1k_tokens)
+            table.config.ollama_model, table.config.ollama_usd_per_1k_tokens,
+            think=table.config.ollama_think, num_predict=table.config.ollama_num_predict)
 
     @property
     def name(self) -> str:

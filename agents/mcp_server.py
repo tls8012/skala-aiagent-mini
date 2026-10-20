@@ -16,7 +16,7 @@ if __package__ in (None, ''):
 
 import httpx
 from fastmcp import FastMCP
-from agents.config import GameConfig
+from agents.config import GameConfig, load_mcp_config
 from agents.chunker import Chunk, EventChunker, EventDocument, SCHEMA_VERSION
 from agents.models import safe_id
 
@@ -328,7 +328,7 @@ _tools: GameTools | None = None
 def get_tools() -> GameTools:
     global _tools
     if _tools is None:
-        _tools = GameTools()
+        _tools = GameTools(load_mcp_config())
     return _tools
 
 

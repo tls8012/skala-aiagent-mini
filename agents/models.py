@@ -100,6 +100,8 @@ class Observation(Contract):
     betting_open: bool
     allowed_bets: list[str]
     can_speak: bool
+    required_game_utterances: int = 0
+    last_speaker: str | None = None
     remaining_utterances: int
     dialogue_quiet: bool
     messages: list[dict[str, Any]]

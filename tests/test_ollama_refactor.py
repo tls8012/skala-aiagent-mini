@@ -9,9 +9,9 @@ import httpx
 os.environ['LANGCHAIN_TRACING_V2'] = 'false'
 os.environ['LANGSMITH_TRACING'] = 'false'
 
-from agent.incident_llm import IncidentFastLLM, IncidentQualityLLM
-from agent.ollama_client import OllamaLLM
-from agent.ollama_llm import OllamaFastLLM, OllamaQualityLLM
+from _old.agent.incident_llm import IncidentFastLLM, IncidentQualityLLM
+from _old.agent.ollama_client import OllamaLLM
+from _old.agent.ollama_llm import OllamaFastLLM, OllamaQualityLLM
 
 
 class StubClient:
@@ -77,14 +77,14 @@ class TransportTests(unittest.IsolatedAsyncioTestCase):
         response = httpx.Response(200, request=req, json={
             'message': {'content': '{"ok":true}'},
             'prompt_eval_count': 10, 'eval_count': 5})
-        with patch('agent.ollama_client.httpx.post', return_value=response) as post:
+        with patch('_old.agent.ollama_client.httpx.post', return_value=response) as post:
             content, usage = llm.complete('system', 'user', {'type': 'object'})
         self.assertEqual(json.loads(content), {'ok': True})
         payload = post.call_args.kwargs['json']
         self.assertEqual(payload['format'], {'type': 'object'})
         self.assertFalse(payload['stream'])
         self.assertEqual(usage, {'model': 'ollama:test', 'tokens': 15, 'usd': 0.000075})
-        with patch('agent.ollama_client.httpx.post', return_value=httpx.Response(500, request=req)):
+        with patch('_old.agent.ollama_client.httpx.post', return_value=httpx.Response(500, request=req)):
             with self.assertRaises(httpx.HTTPStatusError):
                 llm.complete('system', 'user')
 
@@ -102,7 +102,7 @@ class TransportTests(unittest.IsolatedAsyncioTestCase):
 
         client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
         tokens = []
-        with patch('agent.ollama_client.httpx.AsyncClient', return_value=client):
+        with patch('_old.agent.ollama_client.httpx.AsyncClient', return_value=client):
             text, usage = await OllamaLLM('test', 0.005).stream('system', 'user', tokens.append)
         self.assertEqual(text, '안녕하세요')
         self.assertEqual(tokens, ['안녕', '하세요'])

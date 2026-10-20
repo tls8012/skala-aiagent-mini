@@ -1,7 +1,8 @@
 """자주 바꾸는 게임·컨텍스트·기억 설정."""
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 import os
+import json
 
 
 @dataclass(frozen=True)
@@ -18,7 +19,11 @@ class GameConfig:
     round_memo_max_chars: int = 1000
     game_memo_max_chars: int = 2000
     long_memo_max_chars: int = 3000
+    graph_max_attempts: int = 3
+    runner_max_decisions: int = 120
     ollama_model: str = 'qwen3:8b'
+    ollama_think: bool | None = False
+    ollama_num_predict: int = 512
     ollama_usd_per_1k_tokens: float = 0.015
     seed: int | None = None
     data_dir: Path = field(default_factory=lambda: Path(os.environ.get(
@@ -35,7 +40,8 @@ class GameConfig:
                      'min_raise', 'context_message_limit', 'memory_round_limit',
                      'max_message_chars', 'round_memo_max_chars', 'game_memo_max_chars',
                      'long_memo_max_chars', 'embedding_context_tokens',
-                     'embedding_chunk_max_bytes', 'embedding_batch_size'):
+                     'embedding_chunk_max_bytes', 'embedding_batch_size', 'graph_max_attempts',
+                     'runner_max_decisions', 'ollama_num_predict'):
             if type(getattr(self, name)) is not int or getattr(self, name) < 1:
                 raise ValueError(f'{name} must be a positive integer')
         if not 0 <= self.min_utterances <= self.max_utterances:
@@ -44,6 +50,8 @@ class GameConfig:
             raise ValueError('embedding chunk budget must leave room for event headers')
         if self.embedding_chunk_max_bytes > self.embedding_context_tokens - 128:
             raise ValueError('leave at least 128 tokens of conservative embedding headroom')
+        if self.ollama_think is not None and type(self.ollama_think) is not bool:
+            raise ValueError('ollama_think must be bool or None')
         if self.ollama_usd_per_1k_tokens < 0 or not self.ollama_model.strip():
             raise ValueError('invalid Ollama model or token price')
         if self.embedding_timeout <= 0:
@@ -56,3 +64,15 @@ class GameConfig:
         if scope not in limits:
             raise ValueError('scope must be round, game or long')
         return limits[scope]
+
+
+def export_mcp_config(config: GameConfig) -> dict[str, str]:
+    """기존 MCPClient의 환경 상속을 이용해 subprocess에 같은 설정을 전달한다."""
+    values = asdict(config)
+    values['data_dir'] = str(config.data_dir.resolve())
+    return {'POKER_GAME_CONFIG': json.dumps(values)}
+
+
+def load_mcp_config() -> GameConfig:
+    raw = os.environ.get('POKER_GAME_CONFIG')
+    return GameConfig(**json.loads(raw)) if raw else GameConfig()

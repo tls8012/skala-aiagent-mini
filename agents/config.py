@@ -44,6 +44,8 @@ class GameConfig:
                      'runner_max_decisions', 'ollama_num_predict'):
             if type(getattr(self, name)) is not int or getattr(self, name) < 1:
                 raise ValueError(f'{name} must be a positive integer')
+        if self.initial_chips < self.ante:
+            raise ValueError('initial_chips must cover ante without loans')
         if not 0 <= self.min_utterances <= self.max_utterances:
             raise ValueError('min_utterances must be between 0 and max_utterances')
         if self.embedding_chunk_max_bytes < 128:

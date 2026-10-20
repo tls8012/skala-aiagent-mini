@@ -52,6 +52,7 @@
         "player_id": "A",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -67,6 +68,7 @@
         "player_id": "B",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -82,6 +84,7 @@
         "player_id": "C",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -192,6 +195,7 @@
         "player_id": "A",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -207,6 +211,7 @@
         "player_id": "B",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -222,6 +227,7 @@
         "player_id": "C",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -332,6 +338,7 @@
         "player_id": "A",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -347,6 +354,7 @@
         "player_id": "B",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -362,6 +370,7 @@
         "player_id": "C",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -472,6 +481,7 @@
         "player_id": "A",
         "action": "raise",
         "amount": 1,
+        "raise_size": "small",
         "contributions": {
           "A": 1,
           "B": 0,
@@ -487,6 +497,7 @@
         "player_id": "B",
         "action": "fold",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 1,
           "B": 0,
@@ -502,6 +513,7 @@
         "player_id": "C",
         "action": "call",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 1,
           "B": 0,
@@ -604,6 +616,7 @@
         "player_id": "A",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -619,6 +632,7 @@
         "player_id": "B",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -634,6 +648,7 @@
         "player_id": "C",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -744,6 +759,7 @@
         "player_id": "A",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -759,6 +775,7 @@
         "player_id": "B",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -774,6 +791,7 @@
         "player_id": "C",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -884,6 +902,7 @@
         "player_id": "A",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -899,6 +918,7 @@
         "player_id": "B",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -914,6 +934,7 @@
         "player_id": "C",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -1024,6 +1045,7 @@
         "player_id": "A",
         "action": "raise",
         "amount": 2,
+        "raise_size": "medium",
         "contributions": {
           "A": 2,
           "B": 0,
@@ -1039,6 +1061,7 @@
         "player_id": "B",
         "action": "fold",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 2,
           "B": 0,
@@ -1054,6 +1077,7 @@
         "player_id": "C",
         "action": "call",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 2,
           "B": 0,
@@ -1156,6 +1180,7 @@
         "player_id": "A",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -1171,6 +1196,7 @@
         "player_id": "B",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -1186,6 +1212,7 @@
         "player_id": "C",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -1296,6 +1323,7 @@
         "player_id": "A",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -1311,6 +1339,7 @@
         "player_id": "B",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -1326,6 +1355,7 @@
         "player_id": "C",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -1436,6 +1466,7 @@
         "player_id": "A",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -1451,6 +1482,7 @@
         "player_id": "B",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -1466,6 +1498,7 @@
         "player_id": "C",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -1575,14 +1608,15 @@
         "type": "BetPlaced",
         "player_id": "A",
         "action": "raise",
-        "amount": 3,
+        "amount": 2,
+        "raise_size": "medium",
         "contributions": {
-          "A": 3,
+          "A": 2,
           "B": 0,
           "C": 0
         },
-        "current_bet": 3,
-        "pot": 9
+        "current_bet": 2,
+        "pot": 8
       },
       {
         "event_id": 6,
@@ -1591,13 +1625,14 @@
         "player_id": "B",
         "action": "fold",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
-          "A": 3,
+          "A": 2,
           "B": 0,
           "C": 0
         },
-        "current_bet": 3,
-        "pot": 9
+        "current_bet": 2,
+        "pot": 8
       },
       {
         "event_id": 7,
@@ -1606,13 +1641,14 @@
         "player_id": "C",
         "action": "call",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
-          "A": 3,
+          "A": 2,
           "B": 0,
-          "C": 3
+          "C": 2
         },
-        "current_bet": 3,
-        "pot": 12
+        "current_bet": 2,
+        "pot": 10
       },
       {
         "event_id": 8,
@@ -1620,7 +1656,7 @@
         "type": "RoundEnded",
         "winner": "C",
         "draw": false,
-        "pot": 12,
+        "pot": 10,
         "carry_pot": 0,
         "revealed_cards": {
           "A": {
@@ -1640,7 +1676,7 @@
     "result": {
       "winner": "C",
       "draw": false,
-      "pot": 12,
+      "pot": 10,
       "carry_pot": 0,
       "revealed_cards": {
         "A": {
@@ -1708,6 +1744,7 @@
         "player_id": "A",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -1723,6 +1760,7 @@
         "player_id": "B",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -1738,6 +1776,7 @@
         "player_id": "C",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -1848,6 +1887,7 @@
         "player_id": "A",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -1863,6 +1903,7 @@
         "player_id": "B",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -1878,6 +1919,7 @@
         "player_id": "C",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -1988,6 +2030,7 @@
         "player_id": "A",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -2003,6 +2046,7 @@
         "player_id": "B",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -2018,6 +2062,7 @@
         "player_id": "C",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -2128,6 +2173,7 @@
         "player_id": "A",
         "action": "raise",
         "amount": 4,
+        "raise_size": "large",
         "contributions": {
           "A": 4,
           "B": 0,
@@ -2143,6 +2189,7 @@
         "player_id": "B",
         "action": "fold",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 4,
           "B": 0,
@@ -2158,6 +2205,7 @@
         "player_id": "C",
         "action": "call",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 4,
           "B": 0,
@@ -2260,6 +2308,7 @@
         "player_id": "A",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -2275,6 +2324,7 @@
         "player_id": "B",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -2290,6 +2340,7 @@
         "player_id": "C",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -2400,6 +2451,7 @@
         "player_id": "A",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -2415,6 +2467,7 @@
         "player_id": "B",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -2430,6 +2483,7 @@
         "player_id": "C",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -2540,6 +2594,7 @@
         "player_id": "A",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -2555,6 +2610,7 @@
         "player_id": "B",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -2570,6 +2626,7 @@
         "player_id": "C",
         "action": "check",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
           "A": 0,
           "B": 0,
@@ -2679,14 +2736,15 @@
         "type": "BetPlaced",
         "player_id": "A",
         "action": "raise",
-        "amount": 5,
+        "amount": 4,
+        "raise_size": "large",
         "contributions": {
-          "A": 5,
+          "A": 4,
           "B": 0,
           "C": 0
         },
-        "current_bet": 5,
-        "pot": 11
+        "current_bet": 4,
+        "pot": 10
       },
       {
         "event_id": 6,
@@ -2695,13 +2753,14 @@
         "player_id": "B",
         "action": "fold",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
-          "A": 5,
+          "A": 4,
           "B": 0,
           "C": 0
         },
-        "current_bet": 5,
-        "pot": 11
+        "current_bet": 4,
+        "pot": 10
       },
       {
         "event_id": 7,
@@ -2710,13 +2769,14 @@
         "player_id": "C",
         "action": "call",
         "amount": 0,
+        "raise_size": null,
         "contributions": {
-          "A": 5,
+          "A": 4,
           "B": 0,
-          "C": 5
+          "C": 4
         },
-        "current_bet": 5,
-        "pot": 16
+        "current_bet": 4,
+        "pot": 14
       },
       {
         "event_id": 8,
@@ -2724,7 +2784,7 @@
         "type": "RoundEnded",
         "winner": "C",
         "draw": false,
-        "pot": 16,
+        "pot": 14,
         "carry_pot": 0,
         "revealed_cards": {
           "A": {
@@ -2744,7 +2804,7 @@
     "result": {
       "winner": "C",
       "draw": false,
-      "pot": 16,
+      "pot": 14,
       "carry_pot": 0,
       "revealed_cards": {
         "A": {

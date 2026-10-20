@@ -110,7 +110,7 @@ class GameTools:
             'Speech': {'player_id', 'channel', 'text', 'target', 'request_id'},
             'PlayerSilent': {'player_id'},
             'AgentFailed': {'player_id', 'message'},
-            'BetPlaced': {'player_id', 'action', 'amount', 'contributions', 'current_bet', 'pot', 'automatic'},
+            'BetPlaced': {'player_id', 'action', 'amount', 'raise_size', 'contributions', 'current_bet', 'pot', 'automatic'},
             'RoundEnded': {'winner', 'draw', 'pot', 'carry_pot', 'revealed_cards', 'eliminated', 'game_winner', 'finished'},
         }
         folded = set()

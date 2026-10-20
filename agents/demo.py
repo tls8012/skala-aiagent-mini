@@ -40,7 +40,7 @@ def print_event(event):
     elif kind == 'Speech':
         print(f"[{event['player_id']}] {event['text']}", flush=True)
     elif kind == 'BetPlaced':
-        print(f"[{event['player_id']}] {event['action']} +{event['amount']}", flush=True)
+        print(f"[{event['player_id']}] {event['action']} {event.get('raise_size') or ''} +{event['amount']}", flush=True)
     elif kind == 'AgentFailed':
         print(f"[{event['player_id']}] {event['message']}", flush=True)
     elif kind == 'RoundEnded':

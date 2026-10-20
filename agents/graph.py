@@ -88,8 +88,8 @@ async def validate_node(state: AgentState, backend: PokerLLM) -> dict:
                 raise ValueError('one game utterance is required before betting')
             if decision.bet and decision.bet.action not in observation.allowed_bets:
                 raise ValueError('bet is not allowed now')
-            if decision.bet and decision.bet.action == 'raise' and decision.bet.amount < backend.config.min_raise:
-                raise ValueError('raise increment is too small')
+            if decision.bet and decision.bet.action == 'raise' and decision.bet.raise_size not in observation.raise_options:
+                raise ValueError('raise size is not available')
             if state.get('force_bet') and observation.allowed_bets and decision.bet is None:
                 raise ValueError('must choose a betting action instead of waiting')
         return {'valid': True, 'attempts': attempts}

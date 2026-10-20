@@ -72,7 +72,7 @@ class PokerTest(PokerFixture, unittest.TestCase):
         self.command(t, 'A', 'bet', bet=Bet(action='check'))
         self.command(t, 'B', 'bet', bet=Bet(action='check'))
         cmd = PlayerCommand(request_id='raise-once', round_id=1, basis_event=t.event_id,
-                            kind='bet', bet=Bet(action='raise', amount=3))
+                            kind='bet', bet=Bet(action='raise', raise_size='large'))
         first = t.submit('C', cmd)
         pot = t.round.pot
         self.assertEqual(t.submit('C', cmd), first)
@@ -80,15 +80,15 @@ class PokerTest(PokerFixture, unittest.TestCase):
         self.assertEqual(t.round.betting.turn, 'A')
         self.command(t, 'A', 'bet', bet=Bet(action='call'))
         self.command(t, 'B', 'bet', bet=Bet(action='call'))
-        self.assertEqual(t.round.result['pot'], 15)
+        self.assertEqual(t.round.result['pot'], 18)
 
     def test_out_of_turn_stale_and_invalid_check_do_not_mutate(self):
         t = self.table()
         t.start_round()
         self.speak_all(t)
-        self.assertEqual(self.command(t,'B','bet',bet=Bet(action='raise',amount=2)).status,'rejected')
+        self.assertEqual(self.command(t,'B','bet',bet=Bet(action='raise',raise_size='medium')).status,'rejected')
         old = t.event_id
-        self.command(t,'A','bet',bet=Bet(action='raise',amount=2))
+        self.command(t,'A','bet',bet=Bet(action='raise',raise_size='medium'))
         stale = t.submit('B', PlayerCommand(request_id='old',round_id=1,basis_event=old,
                             kind='bet',bet=Bet(action='call')))
         self.assertTrue(stale.rejudge)
@@ -114,20 +114,65 @@ class PokerTest(PokerFixture, unittest.TestCase):
         self.assertEqual(t.players['B'].chips,38)
         self.assertEqual(t.carry_pot,0)
 
-    def test_loan_repayment_elimination_and_config_target(self):
+    def test_no_loans_elimination_and_config_target(self):
         t = self.table(initial_chips=2, target_chips=5)
         t.start_round({'A':Card(13,'S'),'B':Card(8,'H'),'C':Card(3,'C')})
         self.speak_all(t)
-        self.command(t,'A','bet',bet=Bet(action='raise',amount=2))
-        self.command(t,'B','bet',bet=Bet(action='call'))
-        self.command(t,'C','bet',bet=Bet(action='call'))
-        self.assertEqual(t.players['A'].chips,10)
-        self.assertEqual(t.players['A'].debt,0)
+        self.assertEqual(t.observe('A').raise_options, {})
+        self.assertNotIn('raise', t.observe('A').allowed_bets)
+        before = (t.event_id, t.round.pot)
+        self.assertEqual(self.command(t,'A','bet',bet=Bet(action='raise',raise_size='small')).status,'rejected')
+        self.assertEqual((t.event_id,t.round.pot), before)
+        self.finish_checks(t)
+        self.assertEqual(t.players['A'].chips,6)
         self.assertTrue(t.players['B'].eliminated)
-        self.assertEqual(t.players['B'].debt,2)
         self.assertEqual(t.game_winner,'A')
         self.assertTrue(t.finished)
-        self.assertEqual(sum(p.chips-p.debt for p in t.players.values())+t.carry_pot,6)
+        self.assertEqual(sum(p.chips for p in t.players.values())+t.carry_pot,6)
+
+    def test_raise_cap_reserves_outstanding_calls_and_rejects_sizes_without_mutation(self):
+        players = {pid:Player(pid,'ai',chips) for pid,chips in [('A',20),('B',8),('C',12)]}
+        betting = Betting(list(players),players,ante=2,min_raise=1)
+        self.assertEqual(betting.raise_options('A'), {'maximum':6,'large':4,'medium':2,'small':1})
+        self.assertEqual(betting.act('A',Bet(action='raise',raise_size='large')),4)
+        # B has 6 chips, but owes 4. Only 2 remain for a further raise.
+        self.assertEqual(betting.raise_options('B'), {'maximum':2,'medium':2,'small':1})
+        before = (betting.current_bet, betting.pot, dict(betting.contributions),
+                  betting.turn, set(betting.pending), [p.chips for p in players.values()])
+        with self.assertRaises(ValueError):
+            betting.act('B',Bet(action='raise',raise_size='large'))
+        self.assertEqual(before, (betting.current_bet, betting.pot, dict(betting.contributions),
+                  betting.turn, set(betting.pending), [p.chips for p in players.values()]))
+        self.assertEqual(betting.act('B',Bet(action='raise',raise_size='maximum')),2)
+        self.assertEqual(players['B'].chips,0)
+        self.assertEqual(betting.allowed('C'), ['call','fold'])
+        betting.act('C',Bet(action='call'))
+        betting.act('A',Bet(action='call'))
+        self.assertTrue(betting.complete)
+        self.assertEqual(sum(p.chips for p in players.values())+betting.pot,40)
+        self.assertTrue(all(p.chips>=0 for p in players.values()))
+
+    def test_folding_poorest_player_increases_cap(self):
+        players = {pid:Player(pid,'ai',chips) for pid,chips in [('A',4),('B',20),('C',12)]}
+        betting = Betting(list(players),players,ante=2,min_raise=1)
+        self.assertEqual(betting.raise_options('A')['maximum'],2)
+        betting.act('A',Bet(action='fold'))
+        self.assertEqual(betting.raise_options('B')['maximum'],10)
+
+    def test_insufficient_next_ante_eliminates_without_removing_remaining_chip(self):
+        t=self.table(initial_chips=4)
+        t.start_round({'A':Card(13,'S'),'B':Card(8,'H'),'C':Card(3,'C')})
+        self.speak_all(t)
+        self.command(t,'A','bet',bet=Bet(action='raise',raise_size='small'))
+        for pid in ['B','C']:
+            self.command(t,pid,'bet',bet=Bet(action='call'))
+        self.assertEqual(t.players['B'].chips,1)
+        self.assertTrue(t.players['B'].eliminated)
+        self.assertEqual(sum(p.chips for p in t.players.values()),12)
+        players={'A':Player('A','ai',3),'B':Player('B','ai',1)}
+        with self.assertRaises(ValueError):
+            Betting(list(players),players,ante=2,min_raise=1)
+        self.assertEqual(players['A'].chips,3)
 
     def test_folded_cards_and_self_card_never_leak(self):
         t = self.table()
@@ -190,7 +235,7 @@ class PokerTest(PokerFixture, unittest.TestCase):
         t.fail_agent('B')
         self.command(t,'A','speak',text='시작')
         self.command(t,'C','speak',text='응')
-        self.command(t,'A','bet',bet=Bet(action='raise',amount=1))
+        self.command(t,'A','bet',bet=Bet(action='raise',raise_size='small'))
         self.assertIn('B',t.round.betting.folded)
         self.command(t,'C','bet',bet=Bet(action='call'))
         self.assertEqual(t.round.phase,'revealed')
@@ -218,9 +263,9 @@ class PokerTest(PokerFixture, unittest.TestCase):
 
     def test_contract_and_graph_decision_connection(self):
         with self.assertRaises(ValidationError):
-            Bet(action='raise',amount=0)
+            Bet(action='raise')
         with self.assertRaises(ValidationError):
-            Bet(action='call',amount=2)
+            Bet(action='call',raise_size='medium')
         with self.assertRaises(ValidationError):
             AgentDecision(round_id=1,basis_event=0,speech='silent',text='말')
         t=self.table()
@@ -329,6 +374,16 @@ class MemoryTests(PokerFixture, unittest.TestCase):
         self.assertEqual(len({row['id'] for row in rows}),20)
         for row in rows:
             self.assertEqual(row['events'][-1]['type'],'RoundEnded')
+            order=row['events'][0]['order']
+            betting=Betting(order,{pid:Player(pid,'ai',30) for pid in order},ante=2,min_raise=1)
+            for event in row['events']:
+                if event['type']=='BetPlaced':
+                    increment=betting.act(event['player_id'],Bet(action=event['action'],
+                                                               raise_size=event.get('raise_size')))
+                    self.assertEqual(increment,event['amount'])
+                    self.assertEqual(betting.pot,event['pot'])
+                    self.assertEqual(betting.contributions,event['contributions'])
+            self.assertTrue(betting.complete)
             folded={event['player_id'] for event in row['events']
                     if event['type']=='BetPlaced' and event['action']=='fold'}
             self.assertFalse(folded & row['result']['revealed_cards'].keys())

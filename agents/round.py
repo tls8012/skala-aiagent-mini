@@ -9,6 +9,7 @@ from .models import Player
 class Round:
     def __init__(self, number: int, order: list[str], players: dict[str, Player],
                  cards: dict[str, Card], carry_pot: int, config: GameConfig):
+        self.ante = config.ante
         self.number = number
         self.order = order
         self.players = players
@@ -40,10 +41,7 @@ class Round:
         eliminated = []
         for pid in self.order:
             player = self.players[pid]
-            repayment = min(player.chips, player.debt)
-            player.chips -= repayment
-            player.debt -= repayment
-            if player.chips <= 0:
+            if player.chips < self.ante:
                 player.eliminated = True
                 eliminated.append(pid)
         self.phase = 'revealed'

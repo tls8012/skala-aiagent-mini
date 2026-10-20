@@ -20,21 +20,18 @@ class Player:
     id: str
     kind: Literal['ai', 'human']
     chips: int
-    debt: int = 0
     eliminated: bool = False
     failed: bool = False
 
 
 class Bet(Contract):
     action: Literal['check', 'call', 'raise', 'fold']
-    amount: int = Field(default=0, ge=0)
+    raise_size: Literal['maximum', 'large', 'medium', 'small'] | None = None
 
     @model_validator(mode='after')
-    def validate_amount(self):
-        if self.action == 'raise' and self.amount == 0:
-            raise ValueError('raise amount is the positive increment above the current bet')
-        if self.action != 'raise' and self.amount != 0:
-            raise ValueError('only raise accepts amount')
+    def validate_size(self):
+        if (self.action == 'raise') != (self.raise_size is not None):
+            raise ValueError('only raise requires a named raise_size')
         return self
 
 
@@ -107,6 +104,7 @@ class Observation(Contract):
     betting_turn: str | None
     betting_open: bool
     allowed_bets: list[str]
+    raise_options: dict[str, int] = Field(default_factory=dict)
     can_speak: bool
     required_game_utterances: int = 0
     last_speaker: str | None = None

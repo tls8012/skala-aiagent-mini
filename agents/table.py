@@ -129,13 +129,13 @@ class Table:
             if not r.betting_open:
                 return self._result('rejected', 'every active player must speak before betting')
             try:
-                r.betting.act(pid, cmd.bet)
+                increment = r.betting.act(pid, cmd.bet)
             except ValueError as error:
                 return self._result('rejected', str(error))
             c.silent.clear()
             c.deferred.pop(pid, None)  # 베팅 이후 본인의 이전 발언은 자동 공개하지 않는다.
             self._emit('BetPlaced', player_id=pid, action=cmd.bet.action,
-                       amount=cmd.bet.amount, contributions=dict(r.betting.contributions),
+                       amount=increment, raise_size=cmd.bet.raise_size, contributions=dict(r.betting.contributions),
                        current_bet=r.betting.current_bet, pot=r.pot)
         self._advance_failed()
         return self._result('accepted')
@@ -251,6 +251,7 @@ class Table:
                 contributions=dict(r.betting.contributions), betting_turn=r.betting.turn,
                 betting_open=r.betting_open and r.phase == 'dialogue',
                 allowed_bets=r.betting.allowed(pid) if active and r.betting_open else [],
+                raise_options=r.betting.raise_options(pid) if active and r.betting_open else {},
                 can_speak=active and r.phase == 'dialogue' and not c.exhausted(pid)
                           and c.last_speaker != pid,
                 required_game_utterances=max(0, self.config.min_utterances-c.game_counts.get(pid, 0)),

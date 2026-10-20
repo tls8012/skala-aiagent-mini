@@ -85,8 +85,15 @@ class PokerLLM:
         schema['$defs']['MemoryUpdate'] = self._memory_schema()
         schema['properties']['text']['description'] = (
             f'최대 {self.config.max_message_chars}자의 짧은 공개 발언. 말하지 않으면 빈 문자열.')
-        if observation.allowed_bets:
-            schema['$defs']['Bet']['properties']['action']['enum'] = observation.allowed_bets
+        # 행동과 크기를 함께 제한해 모델이 산수나 유효성 추측을 하지 않게 한다.
+        bet_variants = []
+        for action in observation.allowed_bets:
+            properties = {'action': {'type': 'string', 'enum': [action]},
+                          'raise_size': ({'type': 'string', 'enum': list(observation.raise_options)}
+                                         if action == 'raise' else {'type': 'null'})}
+            bet_variants.append({'type': 'object', 'properties': properties,
+                                 'required': ['action', 'raise_size'], 'additionalProperties': False})
+        schema['$defs']['Bet'] = {'anyOf': bet_variants} if bet_variants else {'type': 'null'}
         # 조건 간 관계도 JSON 문법으로 제한한다. bet+wait, silent+긴 text 같은 모순 방지.
         speeches = (['speak'] if observation.required_game_utterances > 0 and observation.can_speak
                     else ['quiet'] if not observation.can_speak else ['speak', 'quiet'])
@@ -128,7 +135,11 @@ class PokerLLM:
             'required_game_utterances가 남고 can_speak=true이면 반드시 게임 발언을 한다. '
             'can_speak=false이면 speak를 선택하지 않는다. '
             '베팅은 allowed_bets에 있는 행동만 선택한다. 내 차례가 아니면 bet=null이다. '
-            'raise.amount는 현재 최고액에 더하는 양의 증가량이고 다른 행동의 amount는 0이다. '
+            '대출은 없다. raise에는 raise_size만 선택한다. maximum=최대, large=큰(4개), '
+            'medium=중간(2개), small=작은(1개) 레이즈다. '
+            'raise_options에 있는 크기만 고르고 금액은 직접 계산하지 않는다. '
+            '엔진이 콜 비용을 제외하고 모두 따라올 수 있는 최대 증가량을 계산한다. '
+            'raise가 아닌 행동의 raise_size는 null이다. '
             'force_bet=true이면 더 기다리지 말고 반드시 베팅 행동을 결정한다. '
             'bet가 있으면 wait_for_dialogue=false다. '
             '발언과 베팅은 독립적이다. 할 말이 없어도 내 차례에는 행동할 수 있다. '

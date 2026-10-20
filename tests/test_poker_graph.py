@@ -127,13 +127,34 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
         for pid in ['A','B']:
             table.submit(pid,PlayerCommand(request_id=pid+'-speak',round_id=1,
                 basis_event=table.event_id,kind='speak',text='게임 발언'))
-        llm.content='{"speech":"silent","text":"","bet":{"action":"check","amount":0},"wait_for_dialogue":false}'
+        llm.content='{"speech":"silent","text":"","bet":{"action":"check","raise_size":null},"wait_for_dialogue":false}'
         decision=await backend.decide(table.observe('A'),{},force_bet=True)
         self.assertEqual(decision.bet.action,'check')
         variants=llm.calls[-1].get('anyOf',[llm.calls[-1]])
         self.assertTrue(all(v['properties']['bet']=={'$ref':'#/$defs/Bet'} for v in variants))
         self.assertTrue(all(v['properties']['wait_for_dialogue']['enum']==[False] for v in variants))
-        self.assertEqual(llm.calls[-1]['$defs']['Bet']['properties']['action']['enum'],['check','raise','fold'])
+        bet_schema=llm.calls[-1]['$defs']['Bet']['anyOf']
+        self.assertEqual([v['properties']['action']['enum'][0] for v in bet_schema],['check','raise','fold'])
+        self.assertEqual(bet_schema[1]['properties']['raise_size']['enum'],['maximum','large','medium','small'])
+
+    async def test_repeated_maximum_raises_finish_without_loans(self):
+        table=Table(['A','B','C'],config=self.config)
+        class Raising(ScriptedPokerLLM):
+            async def decide(self,observation,research,force_bet=False,feedback=''):
+                result=await super().decide(observation,research,force_bet,feedback)
+                if 'raise' in observation.allowed_bets:
+                    return result.model_copy(update={'bet':Bet(action='raise',raise_size='maximum')})
+                return result
+        graphs={pid:build_graph(Raising(table,None,pid,None)) for pid in table.players}
+        runner=RoundRunner(table,graphs)
+        await asyncio.wait_for(runner.run_round(),5)
+        self.assertEqual(table.round.phase,'revealed')
+        self.assertEqual(runner.errors,{})
+        raises=[e for e in table.events if e['type']=='BetPlaced' and e['action']=='raise']
+        self.assertEqual(len(raises),1)
+        self.assertEqual(raises[0]['amount'],28)
+        self.assertEqual(raises[0]['raise_size'],'maximum')
+        self.assertEqual(sum(p.chips for p in table.players.values())+table.carry_pot,90)
 
     def test_reused_transport_keeps_defaults_and_can_bound_thinking(self):
         from agent.ollama_client import OllamaLLM
@@ -163,7 +184,7 @@ class GraphTests(unittest.IsolatedAsyncioTestCase):
         class Raising(ScriptedPokerLLM):
             async def decide(self,observation,research,force_bet=False,feedback=''):
                 result=await super().decide(observation,research,force_bet,feedback)
-                return result.model_copy(update={'bet':Bet(action='raise',amount=1)}) if observation.allowed_bets else result
+                return result.model_copy(update={'bet':Bet(action='raise',raise_size='small')}) if 'raise' in observation.allowed_bets else result
         graphs={pid:build_graph(Raising(table,None,pid,None)) for pid in table.players}
         runner=RoundRunner(table,graphs)
         with self.assertRaisesRegex(RuntimeError,'runner_max_decisions'):

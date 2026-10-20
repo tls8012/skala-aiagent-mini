@@ -1,5 +1,7 @@
 """웹 프록시의 전달 계약과 SSE/오류 자원 정리를 검사한다."""
 import json
+from pathlib import Path
+from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
@@ -11,6 +13,14 @@ AsyncClient = httpx.AsyncClient
 
 class ProxyTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
+        self.folder=TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+        root=Path(self.folder.name)
+        (root / "web" / "dist").mkdir(parents=True)
+        (root / "web" / "dist" / "index.html").write_text("<div>Vue build</div>")
+        patched=patch.object(web,"HERE",root)
+        patched.start()
+        self.addCleanup(patched.stop)
         self.client=AsyncClient(transport=httpx.ASGITransport(app=web.app),base_url='http://web')
         self.addAsyncCleanup(self.client.aclose)
 
@@ -21,6 +31,14 @@ class ProxyTests(unittest.IsolatedAsyncioTestCase):
             clients.append(client)
             return client
         return patch.object(web.httpx,'AsyncClient',side_effect=factory),clients
+
+    async def test_index_serves_build_and_reports_missing_build(self):
+        response=await self.client.get('/')
+        self.assertEqual(response.status_code,200)
+        self.assertIn('Vue build',response.text)
+        with TemporaryDirectory() as folder,patch.object(web,'HERE',Path(folder)):
+            response=await self.client.get('/')
+        self.assertEqual(response.status_code,503)
 
     async def test_game_routes_forward_method_body_query_and_headers(self):
         received=[]
@@ -54,8 +72,6 @@ class ProxyTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(response.json()['backend']['details']['llm_backend'],'fake')
         self.assertEqual(response.json()['backend']['status'],'ok')
         self.assertTrue(all(client.is_closed for client in clients))
-        from tempfile import TemporaryDirectory
-        from pathlib import Path
         with TemporaryDirectory() as folder:
             backend,_=self.backend(handler)
             with backend,patch.object(web,'HERE',Path(folder)):

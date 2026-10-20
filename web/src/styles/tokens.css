@@ -1,0 +1,8 @@
+/* 구조 확인용 최소 공통 값. 캐릭터별 색감/크기 등 시각 디자인은 후속 작업. */
+:root {
+  font-family: -apple-system, "Apple SD Gothic Neo", sans-serif;
+  color: #20252b;
+  background: #f5f6f8;
+}
+* { box-sizing: border-box; }
+body { margin: 0; }

@@ -9,17 +9,22 @@ import httpx
 import uvicorn
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse, Response, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.background import BackgroundTask
 
 BACKEND = "http://127.0.0.1:8100"
 HERE = Path(__file__).parent
 
 app = FastAPI()
+app.mount("/assets", StaticFiles(directory=HERE / "web" / "dist" / "assets", check_dir=False), name="assets")
 
 
 @app.get("/")
 async def index():
-    return FileResponse(HERE / "web_chat.html")
+    path = HERE / "web" / "dist" / "index.html"
+    if not path.is_file():
+        return JSONResponse({"detail": "frontend is not built; run npm run build in web/"}, status_code=503)
+    return FileResponse(path)
 
 
 def request_headers(req):
@@ -36,7 +41,7 @@ def response_headers(upstream):
 
 @app.get("/health")
 async def proxy_health():
-    html_available = (HERE / 'web_chat.html').is_file()
+    html_available = (HERE / 'web' / 'dist' / 'index.html').is_file()
     local = {'status': 'ok' if html_available else 'degraded', 'html_available': html_available}
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:

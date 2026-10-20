@@ -1232,3 +1232,108 @@ AI 간 내부 전달은 실행기/큐가 담당한다. SSE 구독이 없어도 �
 HTML의 게임 화면과 API 호출 연결은 다음 작업이다.
 검증 결과: 상태 점검 정상/백엔드 장애/HTML 누락과 일반 중계·SSE 처리를 포함하여
 전체 unittest 78개 통과. 이번 변경은 문서 정리만 수행했다.
+
+### 데스크톱 Vue UI 구조와 명세
+
+처음 만든 CDN용 JS 컴포넌트 스켈레톤은 정리하고, 사용자 요청에 따라
+`web/`를 Vue 3 + Vite + JavaScript + script setup 기반 프로젝트로 구성했다.
+패키지와 lockfile을 두고 `npm run dev/build/preview`를 제공한다.
+기존 CDN `web_chat.html`은 `_old/web_chat.html`에 보관했다.
+
+App.vue는 조립만 맡는다. GameScreen, GameSetup, GameToolbar와 table/controls/history
+폴더의 각 .vue 컴포넌트로 나눈다. PlayerSeat가 SlimeAvatar/PlayingCard/SpeechBubble을
+가져오며 각 컴포넌트의 고유 스타일은 같은 파일의 scoped style에 둔다.
+HTTP/SSE 서비스, 실시간/리플레이 composable, 서버 응답→화면 데이터 adapter는 별도 모듈이다.
+Router/Pinia/TypeScript는 이번 스켈레톤에 추가하지 않았다.
+
+명세는 `web/UI_SPEC.md`, 실행/폴더 안내는 `web/README.md`, UI 데이터 계약은
+`web/src/contracts.js`에 둔다. 기준은 넓은 데스크톱이다. 인간은 플레이/관전 모두
+하단 human-anchor로 남고 관전자 앵커를 엔진 참가자로 추가하지 않는다.
+AI 좌석/색은 게임 생성 시 고정하고 라운드별 베팅 시작 순서만 별도 반영한다.
+캐릭터는 둥근 몸/흰 눈 두 개/눈의 작은 상하 움직임으로 계획한다. LLM 표정 출력은 후속이다.
+카드/말풍선/베팅/칩은 좌석 안에서 각각 역할을 나눈다.
+
+리플레이는 liveState와 표시 커서를 분리하고 완료 라운드/프레임을 탐색하는 계약이다.
+정확한 과거 관찰 저장/조회 API는 아직 없으므로 선행 백엔드 작업으로 명시했다.
+SSE 이후 현재 상태를 찍어 과거 프레임으로 가장하지 않는다. 숨긴 카드/개인 메모는
+프레임에 넣지 않고 나중에 공개된 카드도 과거 시점에 역으로 채우지 않는다.
+
+개발 화면은 Vite 5173 → 기존 웹 프록시 8600 → 백엔드 8100으로 연결할 예정이다.
+Python 웹 프록시는 빌드한 web/dist/index.html과 /assets를 제공하도록 정적 경로만 바꿨다.
+health의 HTML 점검도 dist 기준이다. 게임 API/SSE 중계 로직은 유지했다.
+빌드 전 루트 요청은 빌드 필요 안내와 503을 반환한다.
+
+이번에는 빈 템플릿/자리 표시, props/emits와 폴더 계약만 만들었다.
+실제 캐릭터/카드 UI, 눈 모션, HTTP/SSE 연결, 입력/리플레이 동작은 구현하지 않았다.
+초기 스켈레톤을 띄워도 게임 생성/LLM 호출이 발생하지 않는다.
+
+검증: npm production build 통과, JS 문법 검사 통과, Python 전체 unittest 79개 통과.
+Python 웹 프록시에서 빌드 index와 JS/CSS assets가 200으로 제공됨도 확인했다.
+
+### CSS 캐릭터 하나와 눈 모션
+
+하단 인간/관전 앵커의 SlimeAvatar 자리 표시에 실제 캐릭터 하나를 붙였다.
+AvatarBody.vue는 원형 몸통과 색상, AvatarEyes.vue는 기울어진 흰 알약 눈 두 개와
+CSS keyframes, SlimeAvatar.vue는 두 부품의 조립을 담당한다. 기본 몸 색은 검정이고
+기존 color prop으로 바꿀 수 있다. 이미지/SVG나 JS 타이머는 사용하지 않는다.
+
+눈은 3.8초마다 3px 상하 이동하고 6.8초마다 천천히 감았다 뜬다.
+motionEnabled는 GameScreen → PokerTable → PlayerSeat → SlimeAvatar → AvatarEyes로
+전달한다. 관전의 readOnly와 분리하고 replay.mode가 replay일 때 모션을 끈다.
+OS의 prefers-reduced-motion 설정도 적용한다. 게임/API 연결은 기존 스켈레톤 그대로다.
+
+검증: npm production build 통과. Vite 개발 서버(5173) 실행 확인.
+현재 연결된 브라우저가 없어 화면과 애니메이션의 시각 검증은 수행하지 못했다.
+
+### 캐릭터 색상 미리보기와 눈 이동 속도
+
+눈 상하 이동 주기를 3.8초에서 1.8초로 줄였다. 느린 깜빡임 주기는 유지한다.
+App.vue의 previewView를 기존 GameScreen/PlayerSeat에 전달해 위에 코랄/파랑/보라,
+하단에 검정 캐릭터를 표시한다. 실제 게임 생성 없이 같은 SlimeAvatar 컴포넌트를 재사용한다.
+
+### 캐릭터 시선 방향
+
+SlimeAvatar/AvatarEyes에 gazeAngle(도)과 gazeStrength(0..1)를 추가했다.
+오른쪽 0, 아래 90, 왼쪽 180, 위 -90이며 strength=0이면 정면이다.
+눈 쌍을 감싸는 위치용 요소에서 sin/cos로 중심을 이동하고, 내부 요소가 기존 상하/깜빡임
+모션을 담당해 transform이 충돌하지 않는다. 방향 변경은 280ms로 연결하고 모션 비활성화나
+reduced-motion에서는 즉시 적용한다. 몸통은 회전하지 않는다.
+PlayerSeat는 seat.gazeAngle/gazeStrength를 전달한다. App 미리보기의 네 캐릭터는
+테이블 안쪽을 보도록 서로 다른 각도를 설정했다. npm production build 통과.
+
+### 테이블 표시 컴포넌트 구현
+
+명세의 참가자 표시부터 채웠다. PlayingCard는 앞면/뒷면/없음을 구분하고 A/K/Q/J와
+네 무늬를 표시한다. 뒷면은 앞면 DOM/접근성 라벨을 만들지 않으며 잘못된 앞면 값도
+비공개로 처리한다. PlayerSeat는 폴드 카드를 뒷면으로 고정한다.
+
+SpeechBubble은 최근 확정 발언을 두 줄로 제한하고 빈 상태에서도 자리를 확보한다.
+전체 보기 이벤트를 PlayerSeat/PokerTable이 GameScreen으로 전달하고, GameScreen은
+EventLog.focusEvent(eventId)로 해당 원문을 스크롤/포커스하고 강조한다. 같은 발언을
+다시 눌러도 동작한다. 입력 초안이나 엔진의 침묵 여부는 말풍선에서 판단하지 않는다.
+
+PlayerSeat는 칩/베팅 차례/상태/최근 행동도 표시한다. PokerTable은 A 오른쪽/B 위/
+C 왼쪽/인간 아래의 배치와 AI 2명일 때 우상단/좌상단 배치를 제공한다. TableStatus는
+전달받은 라운드/단계/판돈/현재 베팅/차례만 표시하며 규칙이나 금액을 재계산하지 않는다.
+EventLog는 원문 스크롤/선택을 표시하고 replayAvailable과 frameId가 있을 때만
+시점 이동 버튼을 노출한다. 현재 앱은 리플레이를 활성화하지 않는다.
+
+미리보기 데이터를 src/preview/tablePreview.js로 분리하고 App.vue는 조립만 맡긴다.
+예시임을 화면에 명시했다. HTTP/SSE/상태 adapter, 입력/베팅, 정확한 과거 상태 조회는
+아직 스켈레톤이다. 다음은 GameSetup/GameToolbar와 인간 입력/베팅 컴포넌트다.
+
+검증: production build와 Vue SFC 렌더링 검사(npm test) 통과. 검사는 카드 비공개,
+폴드/관전, 발언 HTML 이스케이프와 긴 원문 보존, 리플레이 비활성 상태를 확인한다.
+새 테스트 의존성은 추가하지 않았다. 브라우저에서의 배치/클릭 시각 검증은 미수행이다.
+
+### 인간 좌석 간격과 말풍선 원문 스크롤
+
+하단 인간 좌석을 64px 더 아래로 내렸다. 좌우 AI는 중앙 행을 기준으로 정렬하여
+인간 행이 늘어나도 함께 아래로 밀리지 않게 했다.
+말풍선은 두 줄 말줄임 대신 최대 세 줄 높이의 내부 세로 스크롤로 바꿨다.
+키보드 포커스/스크롤을 지원하고 새 eventId의 발언은 처음부터 읽도록 본문을 교체한다.
+기록에서 전체 보기 기능도 유지한다.
+
+별도 질문인 폴드 후 발언은 현재 허용되지 않음을 확인했다. Table._submit과
+release_deferred에서 폴드 참가자를 거절하고, observe.can_speak도 생존자만 허용한다.
+이번 변경에서 게임 엔진 규칙은 수정하지 않았다.

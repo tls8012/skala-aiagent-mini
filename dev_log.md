@@ -1024,3 +1024,141 @@ result = await runner.submit_human('human', PlayerCommand(
 연결됨을 확인했다. 이 검사는 스키마와 전달 경로 검사다. 실제 응답에서 남의 약속을
 자기 약속처럼 말하는 주체 혼동도 관찰했다. 원문·발언자·본인 ID와 약속 주체 지침을
 전달하지만 자연어 판단 품질은 모델에 의존한다. 그런 문장이 실제 칩 이동을 일으키지는 않는다.
+
+### 서버 연결 아키텍처와 HTTP 계약
+
+`server.py`의 FastAPI, lifespan, app.state 공유, StreamingResponse/SSE, 종료 시
+트레이스 flush 틀을 재사용한다. 이전 업무의 SupervisorDeps/fast-quality 모델 조립과
+질문 하나에 답변 하나를 반환하는 chat API는 포커 테이블 API로 교체한다.
+웹 서버와 HTML은 다음 단계에서 이 API를 중계·사용한다.
+
+```text
+web_chat.html → web_demo_server.py(동일 출처 프록시) → server.py
+                                                     ↓
+                                      agents/game_service.py
+                                      GameService → GameSession
+                                                     ↓
+                                      Table + RoundRunner + 참가자별 그래프
+                                                     ↓
+                           기존 MCPClient / PlayerLLM → 기존 OllamaLLM
+```
+
+서버 프로세스는 GameService와 MCP 연결을 한 번 만든다. 게임마다 Table, 참가자별
+그래프, RoundRunner, 백그라운드 라운드 task, 공개 사건 버퍼를 가진다.
+실제 조립/작업 정리는 agents 안의 서비스가 맡고 HTTP 함수는 호출을 중계한다.
+라운드는 명시적으로 시작한다. 공개 후 회고/저장까지 끝나면 다음 라운드를 시작할 수 있다.
+SSE 연결 자체는 게임 실행을 시작하거나 중지하지 않는다.
+
+| 메서드 | 경로 | 역할 |
+|---|---|---|
+| GET | `/health` | 프로세스 상태, backend, 모델, 활성 게임 수 |
+| POST | `/games` | AI 2명 이상과 선택적 인간을 둔 테이블 생성 |
+| GET | `/games/{game_id}` | 현재 단계·실행 상태·해당 인간의 관찰·다음 입력 선택지 |
+| POST | `/games/{game_id}/rounds` | `{round_id: 1}`처럼 목표 라운드 번호로 시작 |
+| POST | `/games/{game_id}/commands` | 기존 PlayerCommand로 발언/발언 없음/베팅 제출 |
+| POST | `/games/{game_id}/commands/release` | `{round_id, basis_event}`로 보류 발언 재확인 |
+| GET | `/games/{game_id}/events` | `after` 또는 Last-Event-ID 이후의 공개 사건을 SSE 구독 |
+| DELETE | `/games/{game_id}` | 라운드 작업 정리·구독 종료·메모리에서 테이블 제거 |
+
+생성 본문은 `ai_ids`(기본 A/B/C), `human_id`(기본 human, null이면 AI-only)다.
+게임 규칙과 모델 설정은 서버의 GameConfig에서 가져오며 클라이언트가 임의로 바꾸지 않는다.
+생성 결과의 `access_token`은 이후 `Authorization: Bearer ...`로 전달한다.
+이 토큰이 게임의 소유/인간 참가자 연결이다. 명령 본문에 actor/player_id나 개인 도구 인수를
+받지 않으며 AI 관점 조회 API도 만들지 않는다. AI-only에서는 공개 전 카드가 없는 관전자
+상태만 제공한다. 토큰은 생성 응답 외 상태/SSE/로그에 포함하지 않는다.
+
+게임 생성과 라운드 시작을 분리하여 구독부터 연결할 수 있게 한다. 같은 round_id 시작
+재요청은 새 카드를 배분하지 않는다. 실행/회고 중 다음 라운드 시작은 409로 거절한다.
+명령의 게임 규칙상 거절은 CommandResult의 rejected/rejudge로 반환하고 최신 상태도
+같이 제공한다. HTTP 401/403은 토큰, 404는 없는 게임, 409는 수명/진행 충돌,
+422는 요청 형식 오류다. 보류 발언 공개도 별도 LLM 호출 없이 기존 해석을 유지한다.
+
+SSE id는 전송 버퍼의 sequence이고, PlayerCommand.basis_event는 Table의 event_id다.
+둘은 용도가 다르다. 서버 사건 RoundReady/RunFailed/GameClosed도 같은 SSE 순서에
+들어가므로 sequence를 베팅의 basis_event로 사용하면 안 된다. 상태 조회의 stream_cursor로
+이어 구독한다. 화면은 공개 사건을 표시하고 필요 시 상태를 다시 조회한다.
+연결이 끊겨도 task는 유지하며 커서로 재연결한다. 버퍼 범위를 벗어난 커서는 상태 재조회를
+요구한다. heartbeat는 통신 유지용일 뿐 게임의 침묵 판정이나 자동 폴드와 무관하다.
+
+메모리 내 게임/연결 정보는 단일 프로세스에서 관리한다. 라운드 공개 기록과 개인 메모는
+기존 저장 코드를 사용한다. 서버 재시작 복원이나 다중 worker 간 테이블 공유는 추가하지 않는다.
+종료 시 게임 작업을 먼저 취소·정리하고 그다음 MCP를 닫는다. 회고/공개 기록 이후 RAG 전달
+실패는 게임 결과를 바꾸지 않고 별도 상태로 알리며 다음 전달 시 미전송 기록을 재시도한다.
+
+#### 서버 구현과 사용 순서
+
+`server.py`는 API 요청 모델/인증/HTTP 오류/SSE 형식과 lifespan만 담당한다.
+새 `agents/game_service.py`에 GameService(게임 목록과 공유 의존성),
+GameSession(한 테이블의 task/관찰/시작·종료), EventJournal(제한된 전송 버퍼)을 둔다.
+서버 출력에 개인 메모나 내부 예외 원문을 넣지 않는다. 구동 오류는 일반 오류 상태와
+RunFailed 사건으로 알리고 상세 내용은 서버 로그에 남긴다.
+기존 SqliteSessionStore는 이전 질의응답 이력용이므로 꺼내지 않았다. 게임의 공개 대화·결과는
+이미 있는 Table 라운드 JSON 저장을 사용한다. 공개 전 카드까지 복원하는 재시작 기능은 별개다.
+
+기본 실행은 외부 모델/MCP 없는 배선 검사 모드다.
+
+```sh
+.venv/bin/python server.py
+# 실제 모델과 기존 MCPClient를 쓰는 실행:
+LLM_BACKEND=ollama .venv/bin/python server.py
+```
+
+`http://127.0.0.1:8100/docs`에서 요청 모델을 확인할 수 있다.
+실제 호출 모드는 GameConfig의 모델을 쓰며 OLLAMA_MODEL/ROUTER_MODEL 환경변수로도
+교체할 수 있다. MCP는 poker 스크립트만 한 번 연결하고 설정을 subprocess에 전달한다.
+모든 테이블이 이 연결을 재사용한다. fake는 ScriptedPokerLLM과
+ScriptedSpeechInterpreter를 쓰며 의미 해석 품질을 시험하는 모드가 아니다.
+
+웹의 호출 순서는 다음과 같다.
+
+1. `POST /games`에 `{"ai_ids":["A","B","C"],"human_id":"human"}` 전달.
+   응답 `{access_token, game}`에서 game.game_id와 토큰을 보관한다.
+2. 이후 게임 API에 `Authorization: Bearer <access_token>`을 붙인다.
+   fetch 기반 SSE를 사용하면 같은 헤더를 보낼 수 있다.
+3. `GET /games/{id}`의 game 상태를 읽고 stream_cursor 이후 사건을 구독한다.
+4. `POST /games/{id}/rounds`에 `{"round_id":1}` 전달. 기다리는 것은 시작까지이며
+   전체 라운드가 끝날 때까지 HTTP 요청을 붙잡지 않는다.
+5. 발언/발언 없음/베팅을 `/commands`로 보내고 `{result, game}`을 받는다.
+   이 game에는 최신 관찰과 버튼에 쓸 allowed_bets/raise_options가 있다.
+6. RoundEnded는 공개 시점, RoundReady는 회고/전달까지 끝난 다음 라운드 준비 시점이다.
+   다음 시작 가능 여부는 can_start_next_round로 확인한다.
+7. 나갈 때 DELETE. 브라우저의 SSE 연결 종료만으로는 테이블을 취소하지 않는다.
+
+명령 예시(숫자는 마지막 상태 조회에서 가져온다):
+
+```json
+{"request_id":"speech-1","round_id":1,"basis_event":12,
+ "kind":"speak","text":"B야 날씨 좋지? C야 A를 견제하자."}
+```
+
+```json
+{"request_id":"bet-1","round_id":1,"basis_event":18,
+ "kind":"bet","bet":{"action":"raise","raise_size":"medium"}}
+```
+
+발언 없음은 `kind="silent"`이며 text/bet을 넣지 않는다.
+서버가 보관한 human_id가 actor다. request_id는 각 새 명령에 새 값을 쓰고,
+같은 요청 재전송은 같은 ID와 본문을 유지한다. 실행기 거절/보류는 HTTP 200의
+CommandResult로 확인한다. AI-only의 인간 입력은 HTTP 409다.
+SSE의 sequence와 별개인 game.event_id/observation.event_id를 basis_event로 쓴다.
+
+SSE 연결은 `/events?after=<stream_cursor>`, 재연결은 Last-Event-ID도 지원한다.
+서버가 둘 중 큰 커서를 사용한다. 초기 조회부터 구독까지 생긴 사건도 버퍼에서 재생한다.
+GameConfig.event_history_limit(기본 2000)을 벗어난 커서는 HTTP 409다.
+이미 구독 중인 느린 클라이언트가 버퍼를 놓치면 ResyncRequired를 받고 상태를 다시 조회한다.
+GameConfig.sse_heartbeat_seconds(기본 15초)의 주석 프레임은 게임 상태에 영향을 주지 않는다.
+
+#### 서버 검증
+
+- 기존 규칙/그래프/도구 테스트와 HTTP 수명/인증/카드 비공개/SSE 검사를 함께 실행한다.
+- HTTP에서 인간 포함 생성 → 중복 시작 → 발언 → 침묵 → 체크 → 공개 → 다음 라운드 → 종료 확인.
+- AI-only 관전자에게 공개 전 카드가 없고, 인간 조회에서 자기 카드가 숨겨짐을 확인.
+- 다른 게임 토큰과 actor 사칭 거부, 내부 오류/메모 문자열과 토큰의 상태/SSE 미노출 확인.
+- SSE 재생·다중 구독·heartbeat·커서 만료 및 라운드 사이 전송 순서 확인.
+- 시작 실패와 종료 시 대기 작업 정리, 공유 MCP 1회 생성과 부분 연결 실패 정리 확인.
+- 경험 전달 실패가 공개 결과를 바꾸지 않고 다음 라운드에서 미전송 기록을 재시도함을 확인.
+- 실제 기존 MCPClient로 poker 서버에 연결하여 ollama 모드 테이블 생성과 종료까지 확인.
+  이 검사는 MCP 조립 검사이며 HTTP를 통한 실모델 한 라운드 전체 검사는 아니다.
+
+검증 결과: 전체 unittest 72개 통과. HTTP/서비스 전용 11개 테스트를 포함하며,
+최종 HTTP 의존성은 같은 이벤트 루프에서 게임을 조회하도록 비동기로 연결했다.

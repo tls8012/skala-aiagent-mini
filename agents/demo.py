@@ -3,11 +3,12 @@ import argparse
 import asyncio
 from dataclasses import replace
 import json
+import re
 from pathlib import Path
 
 from .config import GameConfig
 from .graph import build_graph
-from .models import AgentDecision, Bet
+from .models import AgentDecision, Bet, SpeechIntent, SpeechInterpretation
 from .poker_llm import PokerLLM
 from .runner import RoundRunner
 from .table import Table
@@ -17,6 +18,19 @@ class ScriptedPokerLLM(PokerLLM):
     """배선 확인용 고정 정책. fake는 전략/LLM 응답 품질 검증이 아니다."""
     async def research(self, observation, event):
         return {'status': 'skipped', 'matches': []}
+
+    async def chat(self, observation, event, feedback=''):
+        return AgentDecision(round_id=observation.round_id, basis_event=observation.event_id,
+            speech='speak', text='확인하지 못한 사실이나 비공개 정보는 답할 수 없어.',
+            channel='chat', target=event['player_id'], reply_to=event['request_id'])
+
+    async def mixed(self, observation, event, research, force_bet=False, feedback=''):
+        if not observation.can_speak:
+            return await self.chat(observation, event, feedback)
+        result = await self.decide(observation, research, force_bet, feedback)
+        return result.model_copy(update={'speech': 'speak',
+            'text': '비공개 정보는 답할 수 없어. 게임에서는 상대의 행동을 더 보고 결정할게.',
+            'channel': 'mixed', 'target': event['player_id'], 'reply_to': event['request_id']})
 
     async def summarize_round(self, observation, feedback=''):
         return AgentDecision(round_id=observation.round_id, basis_event=observation.event_id,
@@ -31,6 +45,20 @@ class ScriptedPokerLLM(PokerLLM):
         return AgentDecision(round_id=observation.round_id, basis_event=observation.event_id,
             speech='speak' if speak else 'silent' if observation.required_game_utterances == 0 else 'unavailable',
             text='상대의 말과 행동을 보고 결정하겠어.' if speak else '', bet=bet)
+
+
+class ScriptedSpeechInterpreter:
+    """외부 호출 없는 fake 배선 검사 전용. 실제 의미 해석은 SpeechInterpreter가 담당한다."""
+    async def interpret(self, text, ai_ids, target=None):
+        intents = []
+        recipients = [target] if target in ai_ids else list(ai_ids)
+        for fragment in filter(None, (part.strip() for part in re.split(r'(?<=[?!.])\s+', text))):
+            named = [pid for pid in ai_ids if re.search(re.escape(pid) + r'(?:야|아|[, :])', fragment)]
+            recipients = named or recipients
+            kind = ('private_request' if any(word in fragment for word in ('프롬프트', '비밀', '개인 메모'))
+                    else 'chat' if any(word in fragment for word in ('날씨', '안녕')) else 'game')
+            intents.append(SpeechIntent(kind=kind, targets=recipients, text=fragment))
+        return SpeechInterpretation(intents=intents)
 
 
 def print_event(event):

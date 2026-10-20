@@ -16,6 +16,8 @@ class GameConfig:
     context_message_limit: int = 40
     memory_round_limit: int = 20
     max_message_chars: int = 4000
+    event_history_limit: int = 2000
+    sse_heartbeat_seconds: float = 15.0
     round_memo_max_chars: int = 1000
     game_memo_max_chars: int = 2000
     long_memo_max_chars: int = 3000
@@ -42,12 +44,14 @@ class GameConfig:
     def __post_init__(self):
         for name in ('initial_chips', 'ante', 'target_chips', 'max_utterances',
                      'min_raise', 'context_message_limit', 'memory_round_limit',
-                     'max_message_chars', 'round_memo_max_chars', 'game_memo_max_chars',
+                     'max_message_chars', 'event_history_limit', 'round_memo_max_chars', 'game_memo_max_chars',
                      'long_memo_max_chars', 'embedding_context_tokens',
                      'embedding_chunk_max_bytes', 'embedding_batch_size', 'graph_max_attempts',
                      'runner_max_decisions', 'ollama_num_predict', 'router_num_predict', 'router_max_attempts'):
             if type(getattr(self, name)) is not int or getattr(self, name) < 1:
                 raise ValueError(f'{name} must be a positive integer')
+        if self.sse_heartbeat_seconds <= 0:
+            raise ValueError('sse_heartbeat_seconds must be positive')
         if self.initial_chips < self.ante:
             raise ValueError('initial_chips must cover ante without loans')
         if not 0 <= self.min_utterances <= self.max_utterances:

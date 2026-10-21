@@ -1,6 +1,6 @@
 # 엔진 기반 실험 구현 명세
 
-세 단계의 실행기와 시간/입력/출력 로그를 구현했다. 아래 단계별 명세를 실행 코드와 함께 사용한다.
+네 단계의 실행기와 시간/입력/출력 로그를 구현했다. 아래 단계별 명세를 실행 코드와 함께 사용한다.
 실험 결과는 루트 [exp_log.md](../exp_log.md)에 실행 ID와 함께 요약한다.
 
 ## 실행과 로그 확인
@@ -19,6 +19,9 @@
 .venv/bin/python -m experiments.run --stage 2 --cases 30
 .venv/bin/python -m experiments.run --stage 3 --cases 30
 
+# 배패 10개 각각에서 과거의 진위를 바꾸는 진단: 10개 × 3조건 = 30개 판단
+.venv/bin/python -m experiments.run --stage 4 --cases 10
+
 # 한 조건만 소량 확인하거나 모델을 바꿀 때
 .venv/bin/python -m experiments.run --stage 2 --cases 1 --conditions search_only --model qwen3:8b
 
@@ -26,9 +29,12 @@
 .venv/bin/python -m experiments.run --stage 1 --cases 1 --backend openai
 ```
 
-기본 backend는 GameConfig.llm_backend(현재 ollama)다. `--backend fake`에서는 실제 그래프/게임 엔진/파일 메모는 사용하지만
+기본 backend는 GameConfig.llm_backend다. `--backend fake`에서는 실제 그래프/게임 엔진/파일 메모는 사용하지만
 모델과 검색 결과는 smoke용 응답이다. manifest의 evidence_run=false로 구분하며 성능 근거로 쓰지 않는다.
-cases는 1..30, 기본 30이다. 1단계 3조건, 2단계 4조건, 3단계 상대별 2조건이 기본이다.
+1~3단계 cases는 1..30, 기본 30이다. 1단계 3조건, 2단계 4조건, 3단계 상대별 2조건이 기본이다.
+4단계 cases는 1..10, 기본 10으로 서로 다른 배패 수이며 세 조건에서 비교한다.
+검색/임베딩 없이 고정 자료를 직접 주입하고,
+사전 메모 입력은 끄되 출력 메모는 저장한다. 완료 라운드나 승률을 측정하지 않는다.
 `--conditions`에 해당 단계의 이름을 여러 개 넘기면 일부 조건만 실행한다.
 `--seed`, `--output`, `--timeout`(판단/라운드), `--index-timeout`(도구 준비)을 바꿀 수 있다.
 일부 시행이 실패해도 나머지를 실행하고 종료 코드는 1로 반환한다. 원본 실패 로그는 남는다.
@@ -75,6 +81,7 @@ CLI는 외부 LangSmith 전송을 끄고 로컬 파일에 기록한다.
 1. [STAGE1_INFORMATION.md](STAGE1_INFORMATION.md): 정보 주입에 따른 결정·발언·메모 변화.
 2. [STAGE2_ABLATION.md](STAGE2_ABLATION.md): 검색/메모의 네 조건 비교.
 3. [STAGE3_HEADS_UP.md](STAGE3_HEADS_UP.md): 공격적/수비적 상대와 실제 1대1 라운드.
+4. [STAGE4_TRUST_PROBE.md](STAGE4_TRUST_PROBE.md): 서로 다른 배패 10개에서 과거의 진위만 반전해 해석·신뢰도·행동 연결 진단.
 
 모든 실험은 로컬 Python에서 실행한다. server.py/web_demo_server.py/HTML/SSE를 거치지 않는다.
 Ollama 판단 호출은 실제로 수행한다. fake는 배선 점검에만 사용하고 모델 효과 결과에 섞지 않는다.
@@ -125,6 +132,7 @@ heads-up을 위해 엔진 인원 제한을 바꾸거나 가짜 세 번째 참가
 | fixtures.py | Scenario/scenarios(), build_table(), history_bank(), memoir(). 실제 엔진으로 고정 상황/과거 자료 생성 |
 | backends.py | ExperimentPokerLLM, ToolGate, RecordingClient, ObservedGraph. 조건 제어와 관찰 |
 | execution.py | run_cases()/run_trial(). 조건별 격리/검색 준비/판단 또는 라운드 실행과 실패 수집 |
+| stage4.py | 고정 결정 장면/완료 과거 자료/직접 주입/평가용 정답과 4단계 진입점 |
 | stage1.py | 30개 고정 판단 상황 × 3정보 조건. 한 결정과 실제 적용 결과 수집 |
 | stage2.py | 30개 고정 판단 상황 × 네 조건. 실제 검색 준비/메모 입력과 출력 추적 |
 | stage3.py | RoundRunner로 A–B/A–C 독립 라운드 실행. 조건 대응과 칩 정산 확인 |

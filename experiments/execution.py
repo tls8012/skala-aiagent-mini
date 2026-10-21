@@ -13,6 +13,7 @@ from .backends import ToolGate, make_graph, memory_connection, prepare_tools
 from .common import CONDITIONS, digest, plain
 from .fixtures import build_table, fixed_evidence, history_bank, input_hash, memoir
 from .opponents import FixedPolicy
+from . import stage4
 
 
 async def run_cases(recorder, cases):
@@ -21,11 +22,14 @@ async def run_cases(recorder, cases):
     banks = {}
     rng = random.Random(config.seed)
     for case in cases:
-        bank_key = case.opponent if config.stage == 3 else case.case_id
+        bank_key = 'trust-probe' if config.stage == 4 else case.opponent if config.stage == 3 else case.case_id
         if bank_key not in banks:
             with recorder.span('preparation', 'history_bank', case_id=case.case_id):
                 bank_case = replace(case, seed=config.seed+30000, case_id=f'bank-{case.opponent}', index=0) if config.stage == 3 else case
-                rows, provenance = history_bank(recorder.game_config('fixture-' + bank_key), bank_case, stage=config.stage)
+                if config.stage == 4:
+                    rows, provenance = stage4.history_bank(recorder.game_config('fixture-' + bank_key))
+                else:
+                    rows, provenance = history_bank(recorder.game_config('fixture-' + bank_key), bank_case, stage=config.stage)
                 unrelated = None
                 if config.stage == 1:
                     other = replace(case, opponent='D', family='AGGRESSION')
@@ -42,7 +46,9 @@ async def run_cases(recorder, cases):
                    'backend': config.backend, 'scenario': asdict(case), 'valid': False}
             try:
                 with recorder.span('trial', 'trial_total', trial_id=trial_id):
-                    await run_trial(recorder, case, condition, trial_id, rows, unrelated, provenance, expected, row)
+                    trial_rows = rows[condition] if config.stage == 4 else rows
+                    trial_provenance = provenance[condition] if config.stage == 4 else provenance
+                    await run_trial(recorder, case, condition, trial_id, trial_rows, unrelated, trial_provenance, expected, row)
             except BaseException as error:
                 row.update(valid=False, error=f'{type(error).__name__}: {error}')
                 recorder.emit('errors', **row)
@@ -57,11 +63,18 @@ async def run_cases(recorder, cases):
 async def run_trial(recorder, case, condition, trial_id, rows, unrelated, provenance, expected, result):
     stage = recorder.config.stage
     game = recorder.game_config(trial_id)
-    table = build_table(game, case, 'eval-' + trial_id, stage=stage, recorder=recorder, trial_id=trial_id)
+    if stage == 4:
+        game = stage4.game_settings(game)
+        table = stage4.build_table(game, case, recorder=recorder, trial_id=trial_id)
+        # 평가 로그 전용. 현재 A 카드는 observation/LLM 입력에 넣지 않는다.
+        result['deal'] = {pid: card.to_dict() for pid, card in stage4.deal_cards(case).items()}
+    else:
+        table = build_table(game, case, 'eval-' + trial_id, stage=stage, recorder=recorder, trial_id=trial_id)
     result['input_hash'] = input_hash(table)
-    if case.case_id in expected and expected[case.case_id] != result['input_hash']:
+    comparison_key = case.case_id
+    if comparison_key in expected and expected[comparison_key] != result['input_hash']:
         raise ValueError('paired observation mismatch')
-    expected[case.case_id] = result['input_hash']
+    expected[comparison_key] = result['input_hash']
     result['initial_order'] = table.round.order
     result['game_id'] = table.game_id
     result['game_config'] = plain(asdict(game))
@@ -78,22 +91,28 @@ async def run_trial(recorder, case, condition, trial_id, rows, unrelated, proven
     experiences.write_text(json.dumps(public, ensure_ascii=False))
     (game.data_dir / 'fixture-provenance.json').write_text(json.dumps(provenance, ensure_ascii=False, indent=2))
     result['public_bank_hash'] = digest(public)
-    search, memos_on = ((condition != 'no_information', False) if stage == 1 else CONDITIONS[condition])
+    direct_evidence = stage in (1, 4)
+    search, memos_on = ((condition != 'no_information', False) if direct_evidence else CONDITIONS[condition])
     result.update(search_enabled=search, memo_input_enabled=memos_on,
-                  retrieval_mode='fixture' if stage == 1 else 'smoke_fixture' if recorder.config.backend == 'fake' else 'chroma')
-    evidence = fixed_evidence(unrelated if condition == 'unrelated_history' else rows, case.opponent,
-                              unrelated=condition == 'unrelated_history')
+                  retrieval_mode='fixture' if direct_evidence else 'smoke_fixture' if recorder.config.backend == 'fake' else 'chroma')
+    evidence = (stage4.fixed_evidence(rows) if stage == 4 else
+                fixed_evidence(unrelated if condition == 'unrelated_history' else rows, case.opponent,
+                               unrelated=condition == 'unrelated_history'))
+    if stage == 4:
+        result['ground_truth'] = stage4.answer_key(evidence)
+        (game.data_dir / 'ground_truth.json').write_text(json.dumps(result['ground_truth'], ensure_ascii=False, indent=2))
     if condition == 'unrelated_history':
         evidence['matches'] = evidence['matches'][:len(fixed_evidence(rows, case.opponent)['matches'])]
+    result['evidence_hash'] = digest(evidence)
     initial_memos = memoir(rows, case.opponent) if memos_on else dict.fromkeys(('round', 'game', 'long'), '')
     async with memory_connection(game, recorder.config.backend, recorder, trial_id, evidence) as client:
         async with asyncio.timeout(recorder.config.index_timeout):
             await prepare_tools(table, client, recorder, trial_id, initial_memos,
-                                index=search and stage != 1 and recorder.config.backend != 'fake',
+                                index=search and not direct_evidence and recorder.config.backend != 'fake',
                             timeout=recorder.config.index_timeout)
-        gate = ToolGate(client, recorder, trial_id, read_memos=memos_on, write_memos=stage == 1 or memos_on)
+        gate = ToolGate(client, recorder, trial_id, read_memos=memos_on, write_memos=direct_evidence or memos_on)
         graph = make_graph(table, gate, recorder, trial_id, search_enabled=search,
-                           fixed_research=evidence if search and stage == 1 else None)
+                           fixed_research=evidence if search and direct_evidence else None)
         with recorder.span('execution', 'game_or_decision', trial_id=trial_id):
             async with asyncio.timeout(recorder.config.timeout):
                 if stage == 3:
@@ -129,6 +148,6 @@ async def run_trial(recorder, case, condition, trial_id, rows, unrelated, proven
                 saved = await client.call_tool('read_memories', {
                     'game_id': table.game_id, 'agent_id': 'A', 'round_id': table.round.number}, server='poker')
                 result['saved_memos'] = saved
-                if stage != 1 and not memos_on and any(saved.values()):
+                if not direct_evidence and not memos_on and any(saved.values()):
                     raise ValueError('memo-off trial leaked persisted memories')
                 recorder.emit('contexts', trial_id=trial_id, saved_memos=saved)

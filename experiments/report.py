@@ -12,6 +12,41 @@ def read_rows(root, stream):
     return [json.loads(line) for line in path.read_text().splitlines() if line.strip()] if path.exists() else []
 
 
+def stage4_review(root, trials):
+    """평가 정답과 실제 출력을 함께 제시하되 자유 서술의 의미 평가는 자동 채점하지 않는다."""
+    path = root / 'stage4_review.csv'
+    existing = set()
+    if path.exists():
+        with path.open(newline='', encoding='utf-8') as handle:
+            existing = {row['decision_id'] for row in csv.DictReader(handle)}
+    fields = ['trial_id', 'case_id', 'condition', 'decision_id', 'expected_claim_count',
+              'expected_matches', 'expected_mismatches', 'expected_target_ranks', 'action',
+              'public_text', 'memory_updates', 'extraction_correct', 'trust_assessment',
+              'action_link_supported', 'notes']
+    by_trial = {row['trial_id']: row for row in trials}
+    with path.open('a', newline='', encoding='utf-8') as handle:
+        writer = csv.DictWriter(handle, fieldnames=fields)
+        if path.stat().st_size == 0:
+            writer.writeheader()
+        for row in read_rows(root, 'decisions'):
+            if row['event'] != 'proposed' or row['decision_id'] in existing:
+                continue
+            trial = by_trial.get(row['trial_id'], {})
+            truth = trial.get('ground_truth', {})
+            decision = row['result']['decision']
+            writer.writerow({
+                'trial_id': row['trial_id'], 'case_id': trial.get('case_id'),
+                'condition': trial.get('condition'), 'decision_id': row['decision_id'],
+                'expected_claim_count': truth.get('claim_count'),
+                'expected_matches': truth.get('matching_claims'),
+                'expected_mismatches': truth.get('nonmatching_claims'),
+                'expected_target_ranks': json.dumps([c['target_rank'] for c in truth.get('claims', [])]),
+                'action': (decision.get('bet') or {}).get('action'), 'public_text': decision['text'],
+                'memory_updates': json.dumps(decision['memory_updates'], ensure_ascii=False),
+            })
+            existing.add(row['decision_id'])
+
+
 def summarize(root):
     root = Path(root)
     manifest = json.loads((root / 'manifest.json').read_text())
@@ -57,6 +92,8 @@ def summarize(root):
         base_name = 'control' if 'control' in arms else 'no_information'
         contrasts = [(base_name, c) for c in arms if c != base_name] if base_name in arms else []
         contrasts += [(base, 'both') for base in ('search_only', 'memo_only') if base in arms and 'both' in arms]
+        if manifest['config']['stage'] == 4 and all(c in arms for c in ('trustworthy_history', 'deceptive_history')):
+            contrasts.append(('trustworthy_history', 'deceptive_history'))
         for base, condition in contrasts:
             baseline, row = arms[base], arms[condition]
             valid_pair = baseline['valid'] and row['valid']
@@ -86,6 +123,9 @@ def summarize(root):
                'total_duration_s': manifest.get('total_duration_s'), 'conditions': stats,
                'paired': paired, 'comparisons': comparisons, 'timings': timing_summary,
                'note': 'Inclusive wall-clock spans overlap; do not add node/model/tool totals. Manual evidence review pending.'}
+    if manifest['config']['stage'] == 4:
+        summary['protocol'] = manifest.get('protocol')
+        stage4_review(root, trials)
     (root / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2))
     with (root/'timings.csv').open('w', newline='', encoding='utf-8') as handle:
         fields = ['trial_id', 'decision_id', 'kind', 'name', 'call_id', 'started_offset_s', 'duration_s', 'status', 'error']
@@ -129,6 +169,30 @@ def summarize(root):
              '## 조건별 결과', '', '| 조건 | 상대 | 유효/시도 | 평균 칩 변화(자동 대체 포함) |', '|---|---|---|---|']
     for row in stats:
         lines.append(f"| {row['condition']} | {row['opponent']} | {row['valid']}/{row['attempted']} | {row['mean_chip_delta_with_fallbacks']} |")
+    if manifest['config']['stage'] == 4:
+        distinct_deals = (manifest.get('protocol') or {}).get('unit') == 'distinct_deal'
+        scope = ('cases는 서로 다른 배패 수다. 같은 배패 안에서만 자료 조건을 대응 비교한다.'
+                 if distinct_deals else 'cases는 한 장면의 독립 반복 수다. 서로 다른 판세의 수나 완료 라운드 수가 아니다.')
+        lines += ['', '## 실험 4: 배패별 신뢰도 진단' if distinct_deals else '## 실험 4: 고정 장면 신뢰도 진단', '',
+                  scope,
+                  '과거 없음 / 일치 3건 / 불일치 3건을 직접 주입한다. 검색·메모 입력·승률은 평가하지 않는다.',
+                  '자료 해석·신뢰도 판단·행동 연결은 stage4_review.csv에서 따로 평가한다. 공란은 미평가다.', '',
+                  '| 조건 | 실제 접수 행동 수 | LLM 요청 수 | 기록된 입력+출력 토큰 |', '|---|---|---|---|']
+        for row in stats:
+            lines.append(f"| {row['condition']} | {json.dumps(row['actions'], ensure_ascii=False)} | {row['model_requests']} | {row['tokens']} |")
+        if distinct_deals:
+            lines += ['', '### 배패별 행동', '', 'A 카드는 평가자용 비공개 배패이며 모델에는 주지 않는다.', '',
+                      '| 사례 | A 비공개 | B 관찰 카드 | 조건 | 접수 행동 |', '|---|---|---|---|---|']
+            def card_name(card):
+                return str({11: 'J', 12: 'Q', 13: 'K', 14: 'A'}.get(card['rank'], card['rank'])) + card['suit']
+            for trial in sorted(trials, key=lambda t: (t['case_id'], t['condition'])):
+                if 'deal' not in trial:
+                    continue
+                signature = trial.get('betting_signature', {})
+                action = signature.get('action') if trial['valid'] else '실패'
+                if action == 'raise':
+                    action += f" +{signature['actual_increment']}"
+                lines.append(f"| {trial['case_id']} | {card_name(trial['deal']['A'])} | {card_name(trial['deal']['B'])} | {trial['condition']} | {action} |")
     lines += ['', '## 대응 비교', '', '| 조건 − 기준 | 상대 | 유효/대응 수 | 실제 베팅 변화/판단 쌍 | 평균 칩 차이(자동 대체 포함) |', '|---|---|---|---|---|']
     for row in comparisons:
         lines.append(f"| {row['condition']} − {row['baseline']} | {row['opponent']} | {row['valid_pairs']}/{row['pairs']} | {row['effective_bet_changes']}/{row['decision_pairs']} | {row['mean_chip_difference_with_fallbacks']} |")

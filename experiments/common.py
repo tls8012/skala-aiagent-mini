@@ -22,6 +22,7 @@ CONDITIONS = {
     'control': (False, False), 'search_only': (True, False),
     'memo_only': (False, True), 'both': (True, True),
 }
+TRUST_CONDITIONS = ('no_information', 'trustworthy_history', 'deceptive_history')
 
 
 def digest(value):
@@ -35,7 +36,7 @@ def plain(value):
 @dataclass(frozen=True)
 class ExperimentConfig:
     stage: int
-    cases: int = 30
+    cases: int | None = None
     backend: str = field(default_factory=lambda: GameConfig().llm_backend)
     seed: int = 42
     output: Path = Path('experiments/results')
@@ -45,17 +46,24 @@ class ExperimentConfig:
     index_timeout: float = 180
 
     def __post_init__(self):
-        if self.stage not in (1, 2, 3) or not 1 <= self.cases <= 30:
-            raise ValueError('stage=1..3, cases=1..30')
+        if self.cases is None:
+            object.__setattr__(self, 'cases', 10 if self.stage == 4 else 30)
+        if self.stage not in (1, 2, 3, 4):
+            raise ValueError('stage=1..4')
+        maximum = 10 if self.stage == 4 else 30
+        if type(self.cases) is not int or not 1 <= self.cases <= maximum:
+            raise ValueError(f'stage {self.stage}: cases=1..{maximum}')
         if self.backend not in GAME_BACKENDS or self.timeout <= 0 or self.index_timeout <= 0:
             raise ValueError('invalid backend/timeout')
-        allowed = ('no_information', 'relevant_history', 'unrelated_history') if self.stage == 1 else tuple(CONDITIONS)
+        allowed = (('no_information', 'relevant_history', 'unrelated_history') if self.stage == 1
+                   else TRUST_CONDITIONS if self.stage == 4 else tuple(CONDITIONS))
         if any(c not in allowed for c in self.conditions) or len(set(self.conditions)) != len(self.conditions):
             raise ValueError('invalid/duplicate conditions for this stage')
 
     @property
     def arms(self):
-        return self.conditions or (('no_information', 'relevant_history', 'unrelated_history') if self.stage == 1
+        return self.conditions or (TRUST_CONDITIONS if self.stage == 4
+                                   else ('no_information', 'relevant_history', 'unrelated_history') if self.stage == 1
                                    else tuple(CONDITIONS) if self.stage == 2 else ('control', 'both'))
 
 

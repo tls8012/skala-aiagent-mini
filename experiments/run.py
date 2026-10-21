@@ -40,8 +40,8 @@ def main():
     from dotenv import load_dotenv
     load_dotenv()
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--stage', type=int, required=True, choices=(1, 2, 3))
-    parser.add_argument('--cases', type=int, default=30)
+    parser.add_argument('--stage', type=int, required=True, choices=(1, 2, 3, 4))
+    parser.add_argument('--cases', type=int, help='상황 수: 1~3단계 기본 30, 4단계 기본 10개 배패')
     parser.add_argument('--backend', choices=GAME_BACKENDS, default=GameConfig().llm_backend)
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--model')

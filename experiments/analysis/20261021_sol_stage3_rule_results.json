@@ -1,0 +1,494 @@
+{
+  "run_id": "20261021T114833-80c40b52",
+  "protocol": {
+    "name": "fixed_deal_heads_up",
+    "version": 3,
+    "unit": "completed_round_per_deal_opponent_condition",
+    "deals_per_opponent": 10,
+    "history_seed": 30042,
+    "history_rounds_per_opponent": 20,
+    "history_ids": "deterministic",
+    "history_policy_versions": {
+      "B": "rules-v2-b",
+      "C": "rules-v2-c"
+    },
+    "opponent_policy_versions": {
+      "B": "rules-v2-b",
+      "C": "rules-v2-c"
+    },
+    "opponent_randomness": false,
+    "retrieval": "chroma",
+    "memo_reset_between_trials": true,
+    "evaluates_win_rate": true,
+    "deals": [
+      {
+        "case_id": "s3-B-01",
+        "cards": {
+          "A": {
+            "rank": 10,
+            "suit": "H"
+          },
+          "B": {
+            "rank": 9,
+            "suit": "C"
+          }
+        }
+      },
+      {
+        "case_id": "s3-B-02",
+        "cards": {
+          "A": {
+            "rank": 14,
+            "suit": "H"
+          },
+          "B": {
+            "rank": 2,
+            "suit": "S"
+          }
+        }
+      },
+      {
+        "case_id": "s3-B-03",
+        "cards": {
+          "A": {
+            "rank": 2,
+            "suit": "C"
+          },
+          "B": {
+            "rank": 14,
+            "suit": "H"
+          }
+        }
+      },
+      {
+        "case_id": "s3-B-04",
+        "cards": {
+          "A": {
+            "rank": 13,
+            "suit": "S"
+          },
+          "B": {
+            "rank": 13,
+            "suit": "D"
+          }
+        }
+      },
+      {
+        "case_id": "s3-B-05",
+        "cards": {
+          "A": {
+            "rank": 9,
+            "suit": "S"
+          },
+          "B": {
+            "rank": 10,
+            "suit": "C"
+          }
+        }
+      },
+      {
+        "case_id": "s3-B-06",
+        "cards": {
+          "A": {
+            "rank": 12,
+            "suit": "D"
+          },
+          "B": {
+            "rank": 11,
+            "suit": "H"
+          }
+        }
+      },
+      {
+        "case_id": "s3-B-07",
+        "cards": {
+          "A": {
+            "rank": 11,
+            "suit": "H"
+          },
+          "B": {
+            "rank": 12,
+            "suit": "S"
+          }
+        }
+      },
+      {
+        "case_id": "s3-B-08",
+        "cards": {
+          "A": {
+            "rank": 4,
+            "suit": "C"
+          },
+          "B": {
+            "rank": 3,
+            "suit": "D"
+          }
+        }
+      },
+      {
+        "case_id": "s3-B-09",
+        "cards": {
+          "A": {
+            "rank": 5,
+            "suit": "S"
+          },
+          "B": {
+            "rank": 5,
+            "suit": "H"
+          }
+        }
+      },
+      {
+        "case_id": "s3-B-10",
+        "cards": {
+          "A": {
+            "rank": 6,
+            "suit": "D"
+          },
+          "B": {
+            "rank": 7,
+            "suit": "C"
+          }
+        }
+      },
+      {
+        "case_id": "s3-C-01",
+        "cards": {
+          "A": {
+            "rank": 10,
+            "suit": "H"
+          },
+          "C": {
+            "rank": 9,
+            "suit": "C"
+          }
+        }
+      },
+      {
+        "case_id": "s3-C-02",
+        "cards": {
+          "A": {
+            "rank": 14,
+            "suit": "H"
+          },
+          "C": {
+            "rank": 2,
+            "suit": "S"
+          }
+        }
+      },
+      {
+        "case_id": "s3-C-03",
+        "cards": {
+          "A": {
+            "rank": 2,
+            "suit": "C"
+          },
+          "C": {
+            "rank": 14,
+            "suit": "H"
+          }
+        }
+      },
+      {
+        "case_id": "s3-C-04",
+        "cards": {
+          "A": {
+            "rank": 13,
+            "suit": "S"
+          },
+          "C": {
+            "rank": 13,
+            "suit": "D"
+          }
+        }
+      },
+      {
+        "case_id": "s3-C-05",
+        "cards": {
+          "A": {
+            "rank": 9,
+            "suit": "S"
+          },
+          "C": {
+            "rank": 10,
+            "suit": "C"
+          }
+        }
+      },
+      {
+        "case_id": "s3-C-06",
+        "cards": {
+          "A": {
+            "rank": 12,
+            "suit": "D"
+          },
+          "C": {
+            "rank": 11,
+            "suit": "H"
+          }
+        }
+      },
+      {
+        "case_id": "s3-C-07",
+        "cards": {
+          "A": {
+            "rank": 11,
+            "suit": "H"
+          },
+          "C": {
+            "rank": 12,
+            "suit": "S"
+          }
+        }
+      },
+      {
+        "case_id": "s3-C-08",
+        "cards": {
+          "A": {
+            "rank": 4,
+            "suit": "C"
+          },
+          "C": {
+            "rank": 3,
+            "suit": "D"
+          }
+        }
+      },
+      {
+        "case_id": "s3-C-09",
+        "cards": {
+          "A": {
+            "rank": 5,
+            "suit": "S"
+          },
+          "C": {
+            "rank": 5,
+            "suit": "H"
+          }
+        }
+      },
+      {
+        "case_id": "s3-C-10",
+        "cards": {
+          "A": {
+            "rank": 6,
+            "suit": "D"
+          },
+          "C": {
+            "rank": 7,
+            "suit": "C"
+          }
+        }
+      }
+    ]
+  },
+  "summary": [
+    {
+      "condition": "control",
+      "rounds": 20,
+      "wins": 11,
+      "total_chip_delta": 21,
+      "mean_chip_delta": 1.05,
+      "calls": 90,
+      "tokens": 190545,
+      "by_opponent": {
+        "B": {
+          "wins": 5,
+          "mean_chip_delta": 1.1
+        },
+        "C": {
+          "wins": 6,
+          "mean_chip_delta": 1.0
+        }
+      }
+    },
+    {
+      "condition": "search_only",
+      "rounds": 20,
+      "wins": 10,
+      "total_chip_delta": 11,
+      "mean_chip_delta": 0.55,
+      "calls": 90,
+      "tokens": 235907,
+      "by_opponent": {
+        "B": {
+          "wins": 5,
+          "mean_chip_delta": 0.5
+        },
+        "C": {
+          "wins": 5,
+          "mean_chip_delta": 0.6
+        }
+      }
+    },
+    {
+      "condition": "memo_only",
+      "rounds": 20,
+      "wins": 12,
+      "total_chip_delta": 17,
+      "mean_chip_delta": 0.85,
+      "calls": 92,
+      "tokens": 205771,
+      "by_opponent": {
+        "B": {
+          "wins": 6,
+          "mean_chip_delta": 1.2
+        },
+        "C": {
+          "wins": 6,
+          "mean_chip_delta": 0.5
+        }
+      }
+    },
+    {
+      "condition": "both",
+      "rounds": 20,
+      "wins": 11,
+      "total_chip_delta": 35,
+      "mean_chip_delta": 1.75,
+      "calls": 94,
+      "tokens": 258022,
+      "by_opponent": {
+        "B": {
+          "wins": 5,
+          "mean_chip_delta": 3.0
+        },
+        "C": {
+          "wins": 6,
+          "mean_chip_delta": 0.5
+        }
+      }
+    }
+  ],
+  "both_vs_control": [
+    {
+      "case_id": "s3-B-01",
+      "both_minus_control_chips": -6,
+      "control_winner": "A",
+      "both_winner": "B"
+    },
+    {
+      "case_id": "s3-B-02",
+      "both_minus_control_chips": 5,
+      "control_winner": "B",
+      "both_winner": "A"
+    },
+    {
+      "case_id": "s3-B-03",
+      "both_minus_control_chips": 0,
+      "control_winner": "B",
+      "both_winner": "B"
+    },
+    {
+      "case_id": "s3-B-04",
+      "both_minus_control_chips": 0,
+      "control_winner": "A",
+      "both_winner": "A"
+    },
+    {
+      "case_id": "s3-B-05",
+      "both_minus_control_chips": 0,
+      "control_winner": "B",
+      "both_winner": "B"
+    },
+    {
+      "case_id": "s3-B-06",
+      "both_minus_control_chips": 0,
+      "control_winner": "A",
+      "both_winner": "A"
+    },
+    {
+      "case_id": "s3-B-07",
+      "both_minus_control_chips": 0,
+      "control_winner": "B",
+      "both_winner": "B"
+    },
+    {
+      "case_id": "s3-B-08",
+      "both_minus_control_chips": 20,
+      "control_winner": "A",
+      "both_winner": "A"
+    },
+    {
+      "case_id": "s3-B-09",
+      "both_minus_control_chips": 0,
+      "control_winner": "A",
+      "both_winner": "A"
+    },
+    {
+      "case_id": "s3-B-10",
+      "both_minus_control_chips": 0,
+      "control_winner": "B",
+      "both_winner": "B"
+    },
+    {
+      "case_id": "s3-C-01",
+      "both_minus_control_chips": 0,
+      "control_winner": "A",
+      "both_winner": "A"
+    },
+    {
+      "case_id": "s3-C-02",
+      "both_minus_control_chips": 0,
+      "control_winner": "A",
+      "both_winner": "A"
+    },
+    {
+      "case_id": "s3-C-03",
+      "both_minus_control_chips": 0,
+      "control_winner": "C",
+      "both_winner": "C"
+    },
+    {
+      "case_id": "s3-C-04",
+      "both_minus_control_chips": 0,
+      "control_winner": "A",
+      "both_winner": "A"
+    },
+    {
+      "case_id": "s3-C-05",
+      "both_minus_control_chips": 0,
+      "control_winner": "C",
+      "both_winner": "C"
+    },
+    {
+      "case_id": "s3-C-06",
+      "both_minus_control_chips": 0,
+      "control_winner": "A",
+      "both_winner": "A"
+    },
+    {
+      "case_id": "s3-C-07",
+      "both_minus_control_chips": 0,
+      "control_winner": "C",
+      "both_winner": "C"
+    },
+    {
+      "case_id": "s3-C-08",
+      "both_minus_control_chips": -4,
+      "control_winner": "A",
+      "both_winner": "A"
+    },
+    {
+      "case_id": "s3-C-09",
+      "both_minus_control_chips": -1,
+      "control_winner": "A",
+      "both_winner": "A"
+    },
+    {
+      "case_id": "s3-C-10",
+      "both_minus_control_chips": 0,
+      "control_winner": "C",
+      "both_winner": "C"
+    }
+  ],
+  "both_minus_control_chip_total": 14,
+  "excluding_B08_chip_difference": -6,
+  "limitations": [
+    "Ten fixed deals and two deterministic opponents; not a general poker win rate.",
+    "The +14 paired chip gain is dominated by +20 from B-08.",
+    "No claim that removal of randomness alone caused improvement; strategies and history also changed.",
+    "Model notes do not establish that exact opponent rules were learned."
+  ]
+}

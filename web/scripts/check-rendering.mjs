@@ -45,7 +45,58 @@ try {
   assert.match(log, /&lt;img/);
   assert.equal(log.includes('긴 발언 '.repeat(100)), true);
   assert.doesNotMatch(log, /이 시점 보기/);
-  console.log('Rendering checks passed: card visibility, folded/spectator seats, escaped speech, full log, replay unavailable.');
+  const Setup = await load('GameSetup');
+  const Toolbar = await load('GameToolbar');
+  const Human = await load('controls/HumanControls');
+  const Bets = await load('controls/BettingControls');
+  const disabledButton = (html, label) => {
+    const match = html.match(new RegExp(`<button([^>]*)>${label}</button>`));
+    assert.ok(match, `button not found: ${label}`);
+    return /\sdisabled(?:[\s=>]|$)/.test(match[1]);
+  };
+  assert.match(await render(Setup, { busy: true }), /<fieldset[^>]* disabled/);
+  assert.match(await render(Setup, { error: '<script>bad</script>' }), /&lt;script&gt;/);
+  const summary = { gameId: 'test', status: 'ready', roundId: 1 };
+  assert.equal(disabledButton(await render(Toolbar, { sessionSummary: summary, canStartNextRound: true }), '다음 라운드'), false);
+  for (const overrides of [{ readOnly: true }, { sessionSummary: { ...summary, pending: true } },
+    { sessionSummary: { ...summary, status: 'running' } }, { sessionSummary: { ...summary, status: 'finished' } }]) {
+    const toolbar = await render(Toolbar, { sessionSummary: summary, canStartNextRound: true, ...overrides });
+    assert.equal(disabledButton(toolbar, '다음 라운드'), true);
+  }
+  const commands = { canSpeak: true, canDeclareSilent: true, allowedBets: ['check', 'raise'], raiseOptions: { small: 1 } };
+  // 폴드 상태는 베팅 선택지만 비운다. 발언 권한을 함께 끄면 안 된다.
+  const foldedInput = await render(Human, { participation: 'playing', remainingUtterances: 4, commands: { ...commands, allowedBets: [], raiseOptions: {} } });
+  assert.doesNotMatch(foldedInput, /<textarea[^>]* disabled/);
+  assert.equal(disabledButton(foldedInput, '발언 없음'), false);
+  assert.equal(disabledButton(foldedInput, '체크'), true);
+  // 발언 소진 후에도 베팅은 별도다.
+  const exhaustedInput = await render(Human, { participation: 'playing', remainingUtterances: 0, commands });
+  assert.match(exhaustedInput, /<textarea[^>]* disabled/);
+  assert.equal(disabledButton(exhaustedInput, '체크'), false);
+  for (const overrides of [{ participation: 'spectating' }, { readOnly: true }, { commands: { ...commands, pending: true } }]) {
+    const input = await render(Human, { participation: 'playing', remainingUtterances: 4, commands, ...overrides });
+    assert.match(input, /<textarea[^>]* disabled/);
+    assert.equal(disabledButton(input, '발언 없음'), true);
+    assert.equal(disabledButton(input, '체크'), true);
+  }
+  const deferredInput = await render(Human, { participation: 'playing', remainingUtterances: 4,
+    commands: { ...commands, canRelease: true }, deferredSpeech: { text: '<img>보류한 원문' } });
+  assert.match(deferredInput, /&lt;img&gt;보류한 원문/);
+  assert.match(deferredInput, /<textarea[^>]* disabled/);
+  assert.equal(disabledButton(deferredInput, '이 발언 공개하기'), false);
+  const bets = await render(Bets, { allowedBets: ['raise'], raiseOptions: { small: 1 } });
+  assert.match(bets, /작은 레이즈 <small[^>]*>\+1<\/small>/);
+  assert.match(bets, /<button[^>]* disabled[^>]*>최대 레이즈/);
+  assert.doesNotMatch(bets, /<button[^>]* disabled[^>]*>작은 레이즈/);
+  const { useTablePreview } = await server.ssrLoadModule('/src/preview/useTablePreview.js');
+  const preview = useTablePreview();
+  preview.applySettings({ aiIds: ['A', 'B'], humanPlays: false });
+  assert.equal(preview.view.value.aiSeats.length, 2);
+  assert.equal(preview.view.value.humanSeat.card.visibility, 'absent');
+  assert.equal(preview.view.value.humanSeat.chips, null);
+  assert.equal(preview.view.value.aiSeats.every(seat => seat.card.visibility === 'back' && !('rank' in seat.card)), true);
+  assert.equal(preview.entries.value.some(entry => entry.playerId === 'human' || entry.playerId === 'C'), false);
+  console.log('Rendering checks passed: card privacy, speech/log, setup/toolbar, independent speech/betting permissions, deferred speech, spectator preview.');
 } finally {
   await server.close();
 }

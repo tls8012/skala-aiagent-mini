@@ -5,7 +5,9 @@
 Vue SFC 폴더/컴포넌트/데이터 계약을 바탕으로 참가자와 테이블 표시를 구현했다.
 캐릭터, 앞면/뒷면/없는 카드, 말풍선, 칩/차례/상태, 고정 좌석, 중앙 현황과 스크롤 기록이 동작한다.
 App은 preview/tablePreview.js의 예시를 전달하며 화면에 미리보기임을 표시한다.
-실제 게임 상태 변환, 입력/베팅, API 연결, 리플레이는 아직 구현하지 않았다.
+게임 설정/상단 상태·명령 버튼과 인간 발언/침묵/보류 확인/베팅 입력 컴포넌트도 구현했다.
+실제 게임 상태 변환, API/SSE와 입력 명령의 서버 연결, 리플레이는 아직 구현하지 않았다.
+미리보기 전용 상태 조립은 preview/useTablePreview.js에 분리하고 PreviewTools에서 입력 상태를 바꿔 본다.
 서비스와 composable의 TODO 함수는 호출 시 명시적으로 오류를 낸다. 가짜 성공/가짜 기록을 반환하지 않는다.
 
 기준 해상도는 1920×1080, 최소 작업 폭은 1440px와 높이 900px로 잡는다.
@@ -102,7 +104,7 @@ GameScreen은 EventLog의 해당 사건을 강조하고 스크롤/포커스를 �
 
 | 컴포넌트 | 주요 props | emits / 동작 계약 |
 |---|---|---|
-| GameSetup | busy, error | create-game({aiIds,humanPlays}) |
+| GameSetup | busy, disabled, error | create-game({aiIds,humanPlays}) |
 | GameToolbar | sessionSummary, connection, readOnly, canStartNextRound | start-round, close-game, return-live |
 | PokerTable | aiSeats, humanSeat, summary, readOnly, motionEnabled | expand-speech(eventId) |
 | PlayerSeat | seat, readOnly, motionEnabled | expand-speech(eventId) |
@@ -121,6 +123,13 @@ GameScreen은 사용자 의도를 상위 상태 조립 계층에 전달한다. e
 발언을 펼치거나 포커스하는 화면 동작이다. 게임 명령을 새로 만들지 않는다.
 ReplayControls는 방향/슬라이더 위치 의도만 전달하고 useReplay가 실제 frameId로 해석한다.
 모든 버튼을 각각 별도 컴포넌트로 나누지는 않는다.
+
+GameSetup은 AI 2/3명과 플레이/관전을 로컬 입력으로 보관하고 만들기를 누를 때만 emit한다.
+생성 중/비활성화 상태에서는 입력과 submit을 막고 오류 원문을 텍스트로 표시한다.
+GameToolbar는 SessionSummary/ConnectionState(contracts.js)의 상태를 표시한다.
+첫/다음 라운드 버튼은 gameId, canStartNextRound, created/ready 상태를 모두 확인한다.
+진행/정리/종료/오류/명령 처리/리플레이 중에는 시작할 수 없다. 종료는 열린 gameId가 있고
+명령 처리/리플레이 중이 아닐 때 가능하다. 서버 연결 상태를 자체적으로 추측하지 않는다.
 
 ## 5. 상태와 네트워크 경계
 
@@ -163,6 +172,24 @@ App / GameScreen
 - round_id/basis_event는 항상 liveState에서 만든다. SSE sequence나 과거 프레임 번호를 쓰지 않는다.
 - CommandResult와 SSE 양쪽으로 같은 발언을 받더라도 한 번만 표시한다.
 - 다음 라운드는 RoundReady와 can_start_next_round를 확인하여 명시적으로 시작한다.
+
+HumanControls는 commands.canSpeak/canDeclareSilent/canRelease와 남은 횟수를 읽고
+초안만 로컬에 보관한다. 관전/리플레이/명령 처리/전체 disabled는 공통 차단한다.
+발언 소진이나 보류 문장 존재 시 새 발언을 보내지 않지만 베팅 권한과는 분리한다.
+Enter는 줄바꿈, Ctrl/Cmd+Enter는 전송이며 IME 조합 중에는 전송하지 않는다.
+서버 maxMessageChars가 있으면 입력 상한으로 사용한다. 전송 오류 시 초안을 유지하고,
+commands.speechReceipt의 contextKey/status/text가 현재 맥락의 초안과 맞는 성공/보류일 때만 비운다.
+commands.contextKey는 게임/라운드가 바뀔 때 변경하여 이전 초안을 초기화한다.
+
+BettingControls는 기본 행동 세 개와 레이즈 네 크기를 보여 주되 서버가 허용한 선택만 켠다.
+레이즈 증분은 raiseOptions에 있는 양의 정수만 표시한다. emit은 bet({action}) 또는
+bet({action:'raise',raise_size})이며 금액 계산이나 HTTP 요청을 하지 않는다.
+GameScreen은 상단/인간 입력 emits를 상위로 전달하고 리플레이 mode의 읽기 전용을 함께 적용한다.
+
+현재 App은 실제 서비스 대신 useTablePreview를 연결한다. 인원/관전 선택은 예시 좌석에 적용하고,
+관전에서는 인간 카드/칩/발언을 없애며 AI 카드는 뒷면만 전달한다. PreviewTools에서 내 차례,
+폴드, 발언 소진, 보류, 다음 라운드 대기 예시를 고를 수 있다. 버튼 입력은 안내로 확인할 뿐
+게임 명령 접수 성공이나 새 사건/게임 기록으로 만들지 않는다. 실제 네트워크 연결은 다음 단계다.
 
 ## 7. 리플레이: 필수 요구와 아직 없는 백엔드
 
@@ -208,7 +235,7 @@ TableView                       선택한 모드의 읽기 전용 표시 데이�
 ## 8. 후속 구현 순서
 
 1. PlayerSeat/SlimeAvatar/PlayingCard/SpeechBubble, 고정 좌석/중앙 정보/기록 표시는 구현 완료.
-2. GameSetup/GameToolbar/HumanControls/BettingControls의 입력과 emits 구현.
+2. GameSetup/GameToolbar/HumanControls/BettingControls의 입력과 emits, 미리보기 연결은 구현 완료.
 3. 실제 서버 관찰 → TableView 변환과 일반 API/SSE/실시간 상태, 인간 명령 연결.
 4. 사건별 관찰 저장/조회 백엔드 구현.
 5. 리플레이 탐색을 같은 표시 컴포넌트에 연결.

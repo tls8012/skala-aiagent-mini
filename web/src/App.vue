@@ -1,18 +1,24 @@
 <script setup>
 import GameScreen from './views/GameScreen.vue';
 import GameSetup from './components/GameSetup.vue';
-import { previewView, previewEntries } from './preview/tablePreview.js';
+import PreviewTools from './preview/PreviewTools.vue';
+import { useTablePreview } from './preview/useTablePreview.js';
+
+const { mode, notice, view, entries, commands, deferredSpeech, sessionSummary, participation,
+  remaining, canStartNextRound, applySettings, recordAction, recordBet } = useTablePreview();
 </script>
 
 <template>
-  <GameScreen :view="previewView" :entries="previewEntries">
-    <template #setup>
-      <GameSetup />
-      <p class="preview-notice">화면 미리보기 · 카드와 대화는 예시입니다.</p>
-    </template>
+  <GameScreen
+    :view="view" :entries="entries" :commands="commands" :deferred-speech="deferredSpeech"
+    :session-summary="sessionSummary" :participation="participation" :remaining-utterances="remaining"
+    :can-start-next-round="canStartNextRound" :connection="{ status: 'idle' }"
+    @start-round="recordAction('라운드 시작')" @close-game="recordAction('테이블 종료')"
+    @speak="recordAction(`발언: ${$event.text}`)" @silent="recordAction('발언 없음')"
+    @release-speech="recordAction('보류 발언 공개')"
+    @bet="recordBet"
+  >
+    <template #setup><GameSetup @create-game="applySettings" /></template>
+    <template #preview><PreviewTools v-model:mode="mode" :notice="notice" /></template>
   </GameScreen>
 </template>
-
-<style scoped>
-.preview-notice { margin: 10px 0 0; color: #7c8494; font-size: 12px; }
-</style>

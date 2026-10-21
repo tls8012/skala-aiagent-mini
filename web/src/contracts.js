@@ -43,6 +43,23 @@
  */
 
 /**
+ * @typedef {Object} SessionSummary
+ * @property {string|null} gameId
+ * @property {'created'|'running'|'summarizing'|'ready'|'finished'|'closed'|'failed'} status
+ * @property {number} roundId
+ * @property {'playing'|'spectating'} participation
+ * @property {boolean} pending 상단 명령 처리 중.
+ * @property {string|null} [gameWinner]
+ * @property {string|null} [error]
+ */
+
+/**
+ * @typedef {Object} ConnectionState
+ * @property {'idle'|'connecting'|'connected'|'reconnecting'|'disconnected'|'error'} status
+ * @property {string|null} [error]
+ */
+
+/**
  * @typedef {Object} CommandAvailability
  * @property {boolean} disabled
  * @property {string|null} disabledReason
@@ -50,6 +67,11 @@
  * @property {boolean} canSpeak
  * @property {boolean} canDeclareSilent
  * @property {boolean} canRelease
+ * @property {boolean} [isSilent] 서버가 확정한 발언 없음 상태.
+ * @property {string} [contextKey] 게임/라운드 전환 시 변경. 입력 초안 초기화에 사용.
+ * @property {number} [maxMessageChars] 서버 설정으로 받은 입력 길이 상한.
+ * @property {string|null} [error] 명령 접수 오류.
+ * @property {{id:string, contextKey:string, status:'accepted'|'deferred'|'rejected', text:string}} [speechReceipt] 접수 결과. 같은 맥락의 성공한 원문과 일치할 때만 초안을 비운다.
  * @property {string[]} allowedBets
  * @property {Object<string, number>} raiseOptions 서버가 계산한 이름→증가량. UI에서 재계산하지 않는다.
  */

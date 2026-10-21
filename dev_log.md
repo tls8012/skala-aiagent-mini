@@ -1358,3 +1358,32 @@ UI 미리보기에도 폴드한 C의 발언 예시를 추가했다. 실제 입�
 회귀 검사는 폴드 후 발언/보류 해제/한도 소진/베팅 거절/카드 비공개/종료 후 거절,
 모델 오류 참가자 제한, AI→다른 AI 방송 및 인간 잡담 응답, 인간 입력 경로를 포함한다.
 검증: Python 전체 unittest 83개, 프런트엔드 렌더링 검사와 production build 모두 통과.
+
+### 게임 설정·상단 상태와 인간 입력 컴포넌트
+
+GameSetup은 AI 2/3명과 인간 참여/관전 선택, 생성 중 차단/오류 표시를 구현하고
+create-game({aiIds,humanPlays})만 전달한다. GameToolbar는 세션/연결 상태, 라운드,
+플레이/관전, 우승자와 시작/종료/현재 복귀 버튼을 담당한다. canStartNextRound와
+created/ready 상태가 맞아야 시작할 수 있고 진행/정리/종료/처리 중/리플레이에서는 막는다.
+GameScreen은 상단과 하단 명령 이벤트를 상위로 전달하고 replay.mode의 읽기 전용을 적용한다.
+
+HumanControls는 초안, 남은 발언 횟수, 발언 없음과 보류 원문/명시적 재확인을 표시한다.
+commands.canSpeak/canDeclareSilent/canRelease를 따르고 관전/리플레이/처리 중에는 차단한다.
+Ctrl/Cmd+Enter 전송은 IME 조합 중에 실행하지 않는다. 접수 실패나 미연결 상태에서
+초안을 지우지 않는다. 같은 contextKey와 원문에 대한 speechReceipt의 accepted/deferred를
+받아야 비우며 게임/라운드의 contextKey가 바뀌면 초기화한다. 서버의 maxMessageChars를
+받으면 입력 길이를 제한한다. 폴드는 참여 모드를 바꾸지 않아 남은 발언을 계속 쓸 수 있다.
+
+BettingControls는 allowedBets/raiseOptions로 활성화를 결정하고 체크/콜/폴드와
+최대/큰/중간/작은 레이즈 증분을 표시한다. 기본은 bet({action}), 레이즈는
+bet({action:'raise',raise_size})로 전달한다. 발언 횟수 소진과 베팅 가능 여부는 별개이며
+금액이나 유효한 크기를 프런트에서 다시 계산하지 않는다.
+
+App은 조립만 맡기고 preview/useTablePreview.js와 PreviewTools.vue로 예시 상태를
+분리했다. 인원/관전 선택과 내 차례/폴드/발언 소진/보류/다음 라운드 대기를 확인할 수 있다.
+관전 앵커에는 칩/카드가 없고 AI 카드도 뒷면만 전달한다. 버튼 입력은 미리보기 안내에만
+표시하고 실제 게임 접수 성공이나 새 사건/과거 프레임으로 생성하지 않는다.
+HTTP/SSE/실제 상태 변환/게임 명령 연결과 리플레이는 여전히 후속 작업이다.
+
+검증: npm test의 SFC 렌더링/상태 검사와 production build 통과. 새 의존성은 추가하지 않았다.
+브라우저에서의 배치/클릭 시각 검증은 수행하지 않았다.

@@ -1594,3 +1594,34 @@ experiments/common.py의 source_hashes에 템플릿 파일과 로더 코드를 �
 runner/graph/스키마/엔진/실험 실행 코드는 변경하지 않았다. tests/test_poker_prompts.py에서
 대역 모델과 기존 FixedPolicy를 실제 그래프/runner에 연결해 false→true 전환 및 체크/콜 접수를
 확인했다. 관련 4개 검사 통과. 실제 모델 실행은 사용자가 수행한다.
+
+### 주장 신뢰성·베팅 성향 검색 분리와 사건 단위 반환
+
+기존에는 상대의 Speech/BetPlaced 청크가 같은 상위 3개 자리를 경쟁했다.
+agents/poker_llm.py의 PokerLLM.research는 이제 같은 상대에 대해 두 질의를 만든다.
+주장 질의에는 최근 발언만, 베팅 질의에는 현재 최고 베팅·상대 기여액·실제 콜 비용을 넣는다.
+상대 BetPlaced 사건에는 그 베팅의 출처를 사용하고, 선행 발언이 없으면 베팅만 검색한다.
+
+- agents/config.py: retrieval_claim_limit=5, retrieval_betting_limit=5로 두 검색의 반환 사건
+  수를 각각 설정한다(1~20). retrieval_candidate_multiplier=4는 최초 청크 후보 수의 배수다.
+  기존 export_mcp_config가 이 값도 MCP subprocess에 전달한다.
+- agents/mcp_server.py: search_experiences에 search_kind=claims/betting/all을 추가했다.
+  claims는 Speech, betting은 BetPlaced로 Chroma 메타데이터 필터를 걸어 후보를 분리한다.
+  all은 기존 직접 호출·색인 준비 probe용 혼합 조회다. 상대 필터와 공개 결과 첨부는 유지한다.
+- 후보는 기본 limit*4개를 검색하고, 같은 사건의 청크가 자리를 채워 사건 수가 부족하면
+  후보 수를 늘린다. 추가 후보 검색은 이미 만든 질의 임베딩을 재사용한다.
+  결과는 사건별 최소 거리로 정렬하고 공개 JSON 원문에서 전체 사건을 복원한다.
+  limit은 이제 청크 수가 아니라 사건 수이며, id는 event_key다. metadata의 chunk_index는
+  제외하고 chunk_count는 색인 당시 전체 청크 수로 유지한다. 기존 벡터의 재임베딩은 필요 없다.
+  같은 문장이라도 서로 다른 라운드/사건이면 유지한다. 공개되지 않은 폴드 카드는 추가하지 않는다.
+- PokerLLM.research는 유형별 ready 결과만 캐시한다. 베팅액/콜 비용이 바뀌면 베팅 검색을
+  갱신하고 같은 주장 검색은 재사용한다. indexing/unavailable은 다음 판단에서 재시도한다.
+  결과 본문은 past_experiences.matches에 한 번만 넣고 search_kind로 출처를 표시한다.
+  past_experiences.searches에는 각 검색의 status/query/opponent_id/error를 따로 남긴다.
+  한 검색이 실패해도 다른 검색의 결과는 유지한다. 판단 템플릿에 두 출처의 의미를 설명했다.
+
+검증: 실제 임시 Chroma DB에 대역 임베딩을 주입해, 베팅이 벡터상 더 가까워도 J 이상
+발언 검색에 섞이지 않는 것, 긴 사건의 청크 독점 시 후보 확장/원문 복원, 서로 다른 판의
+동일 문장 보존, 해당 유형 부재 시 빈 결과, 출처/폴드 카드 보호를 확인했다.
+유형별 호출/설정 전달/캐시/실패 재시도와 기존 엔진·그래프·실험 검사를 포함해 80개 통과했다.
+리랭커나 베팅 정책은 변경하지 않았다. 실제 LLM/임베딩 HTTP 호출과 게임 실험은 수행하지 않았다.

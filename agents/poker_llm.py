@@ -28,8 +28,7 @@ class PokerLLM:
         self.player_id = player_id
         self.llm = llm
         self.config = table.config
-        self._research_key = None
-        self._research_result = None
+        self._research_cache = {}
 
     def route(self, observation: Observation, event: dict) -> str:
         """공개 후 회고 / 검증된 인간 잡담 / 게임 판단의 세 경로."""
@@ -47,25 +46,50 @@ class PokerLLM:
         return 'chat' if is_chat else 'game'
 
     async def research(self, observation: Observation, event: dict) -> dict:
-        """최근 상대 게임 발언과 현재 베팅으로 검색한다. 같은 상황의 ready 결과는 재사용."""
+        """주장 신뢰성과 베팅 성향을 각각 검색. 유형별 ready 결과만 재사용한다."""
         candidates = [message for message in observation.messages
                       if message['channel'] in {'game', 'mixed'} and message['player_id'] != self.player_id]
         if event.get('type') == 'Speech' and event.get('channel') in {'game', 'mixed'} and event.get('player_id') != self.player_id:
             message = event
+            opponent_id = message['player_id']
+        elif event.get('type') == 'BetPlaced' and event.get('player_id') != self.player_id:
+            opponent_id = event['player_id']
+            message = next((m for m in reversed(candidates) if m['player_id'] == opponent_id), None)
         elif candidates:
             message = candidates[-1]
+            opponent_id = message['player_id']
         else:
             return {'status': 'skipped', 'matches': []}
-        key = (observation.round_id, message['player_id'], message['event_id'], observation.current_bet)
-        if key == self._research_key and self._research_result is not None:
-            return self._research_result
-        query = (f"상대 {message['player_id']}의 주장과 블러핑: {message['text']} "
-                 f"현재 추가 베팅액 {observation.current_bet}")[:self.config.max_message_chars]
-        result = await self.table.call_player_tool(self.mcp, self.player_id,
-            'search_experiences', {'query': query, 'limit': 3, 'opponent_id': message['player_id']})
-        if result.get('status') == 'ready':
-            self._research_key, self._research_result = key, result
-        return result
+        queries = {}
+        if message is not None:
+            queries['claims'] = (f"상대 {opponent_id}의 과거 카드 주장과 블러핑: {message['text']}",
+                                 self.config.retrieval_claim_limit)
+        call_cost = max(0, observation.current_bet - observation.contributions.get(self.player_id, 0))
+        queries['betting'] = (
+            f"상대 {opponent_id}의 과거 체크 콜 레이즈 폴드와 베팅 크기. "
+            f"현재 테이블 최고 베팅 {observation.current_bet}, "
+            f"상대 누적 베팅 {observation.contributions.get(opponent_id, 0)}, 내 콜 비용 {call_cost}",
+            self.config.retrieval_betting_limit)
+        searches, matches = {}, []
+        for kind, (query, limit) in queries.items():
+            query = query[:self.config.max_message_chars]
+            key = (observation.round_id, opponent_id, query, limit)
+            cached = self._research_cache.get(kind)
+            if cached is not None and cached[0] == key:
+                result = cached[1]
+            else:
+                result = await self.table.call_player_tool(self.mcp, self.player_id,
+                    'search_experiences', {'query': query, 'limit': limit,
+                                          'opponent_id': opponent_id, 'search_kind': kind})
+                if result.get('status') == 'ready':
+                    self._research_cache[kind] = (key, deepcopy(result))
+            # 본문은 matches에 한 번만 담고, 각 검색의 상태/출처는 별도로 남긴다.
+            searches[kind] = {key: value for key, value in result.items() if key != 'matches'}
+            searches[kind].update(opponent_id=opponent_id, query=query)
+            matches.extend({**deepcopy(match), 'search_kind': kind} for match in result.get('matches', []))
+        statuses = {search['status'] for search in searches.values()}
+        status = 'ready' if statuses == {'ready'} else 'unavailable' if 'unavailable' in statuses else 'indexing'
+        return {'status': status, 'searches': searches, 'matches': matches}
 
     async def chat(self, observation: Observation, event: dict, feedback: str = '') -> AgentDecision:
         system = render_prompt('poker_chat')

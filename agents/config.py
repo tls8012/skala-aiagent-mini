@@ -48,6 +48,9 @@ class GameConfig:
     embedding_chunk_max_bytes: int = 1536
     embedding_batch_size: int = 16
     embedding_timeout: float = 60.0
+    retrieval_claim_limit: int = 5
+    retrieval_betting_limit: int = 5
+    retrieval_candidate_multiplier: int = 4
 
     def __post_init__(self):
         for name in ('initial_chips', 'ante', 'target_chips', 'max_utterances',
@@ -56,7 +59,8 @@ class GameConfig:
                      'long_memo_max_chars', 'embedding_context_tokens',
                      'embedding_chunk_max_bytes', 'embedding_batch_size', 'graph_max_attempts',
                      'runner_max_decisions', 'ollama_num_predict', 'router_num_predict', 'router_max_attempts',
-                     'openai_max_output_tokens', 'openai_router_max_output_tokens'):
+                     'openai_max_output_tokens', 'openai_router_max_output_tokens',
+                     'retrieval_claim_limit', 'retrieval_betting_limit', 'retrieval_candidate_multiplier'):
             if type(getattr(self, name)) is not int or getattr(self, name) < 1:
                 raise ValueError(f'{name} must be a positive integer')
         if self.sse_heartbeat_seconds <= 0:
@@ -77,6 +81,8 @@ class GameConfig:
             raise ValueError('invalid router model or timeout')
         if self.embedding_timeout <= 0:
             raise ValueError('embedding_timeout must be positive')
+        if max(self.retrieval_claim_limit, self.retrieval_betting_limit) > 20:
+            raise ValueError('retrieval limits must not exceed 20 events per search')
         if self.llm_backend not in {'ollama', 'openai'} or not self.openai_model.strip():
             raise ValueError('invalid LLM backend or OpenAI model')
         if self.openai_router_model is not None and not self.openai_router_model.strip():

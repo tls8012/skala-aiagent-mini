@@ -9,6 +9,11 @@ defineProps({
 });
 defineEmits(['seek-frame']);
 const elements = new Map();
+function setEntryRef(id, element) {
+  if (id == null) return;
+  if (element) elements.set(id, element);
+  else elements.delete(id);
+}
 async function focusEvent(id) {
   await nextTick();
   const element = elements.get(id);
@@ -27,12 +32,12 @@ defineExpose({ focusEvent });
       <article
         v-for="entry in entries"
         :key="entry.id"
-        :ref="element => element ? elements.set(entry.eventId, element) : elements.delete(entry.eventId)"
+        :ref="element => setEntryRef(entry.eventId, element)"
         class="event-log__entry"
-        :class="{ 'event-log__entry--selected': entry.eventId === selectedEventId || (entry.frameId && entry.frameId === selectedFrameId) }"
+        :class="{ 'event-log__entry--selected': (selectedEventId != null && entry.eventId === selectedEventId) || (entry.frameId && entry.frameId === selectedFrameId) }"
         tabindex="-1"
       >
-        <div class="event-log__meta"><strong>{{ entry.playerId === 'human' ? '나' : entry.playerId || '테이블' }}</strong><span>라운드 {{ entry.roundId }} · #{{ entry.eventId ?? '—' }}</span></div>
+        <div class="event-log__meta"><strong>{{ entry.playerLabel || (entry.playerId === 'human' ? '나' : entry.playerId || '테이블') }}</strong><span>라운드 {{ entry.roundId }} · #{{ entry.eventId ?? '—' }}</span></div>
         <p>{{ entry.text }}</p>
         <button v-if="replayAvailable && entry.frameId" type="button" @click="$emit('seek-frame', entry.frameId)">이 시점 보기</button>
       </article>

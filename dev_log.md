@@ -1387,3 +1387,50 @@ HTTP/SSE/실제 상태 변환/게임 명령 연결과 리플레이는 여전히 
 
 검증: npm test의 SFC 렌더링/상태 검사와 production build 통과. 새 의존성은 추가하지 않았다.
 브라우저에서의 배치/클릭 시각 검증은 수행하지 않았다.
+
+### Vue 실제 세션 연결: HTTP / SSE / 상태 조립
+
+기본 App은 LiveGame으로 실제 서버를 연결한다. 기존 화면 예시는 GamePreview로 옮겨
+`?preview=1`에서 유지한다. LiveGame은 useGameSession의 props와 컴포넌트 emits만 묶으며
+GameScreen/캐릭터/카드/입력 컴포넌트는 재사용한다. 함수별 설명과 실행/검증 순서는
+`web/CONNECTION_GUIDE.md`에 작성했다.
+
+- services/gameApi.js: 기존 엔드포인트의 일반 요청과 ApiError. Authorization 헤더,
+  JSON, 제한 시간만 담당하고 명령을 자동 반복하지 않는다.
+- services/sseParser.js / eventStream.js: 분할 UTF-8/줄/CRLF/여러 data 줄을 처리하고
+  sequence 중복 제거, Last-Event-ID 재연결, 409/ResyncRequired 재동기화, 종료를 담당한다.
+  스트림 close는 구독 종료일 뿐 게임을 DELETE하지 않는다.
+- services/sessionStorage.js: 한 탭의 gameId/token만 재접속 정보로 저장한다. 저장소가
+  차단되면 현재 메모리로 실행한다. 토큰을 표시 데이터나 공개 사건에 넣지 않는다.
+- adapters/toTableView.js: 서버 players의 생성 순서로 좌석/색을 고정하고 현재 라운드의
+  확정 발언/행동을 붙인다. snapshot.visible_cards로만 카드 표시를 결정한다. 폴드 카드,
+  공개 전 자기 카드/AI-only 관전은 rank/suit를 복사하지 않는다.
+- adapters/toCommandState.js: 발언/베팅 권한을 분리하고 동기화/접수 재확인 중 입력을 잠근다.
+- adapters/publicEvents.js: 공개 사건을 키로 합치고 화면 기록으로 변환한다.
+- components/SessionNotice.vue: 서버 모드/오류/재연결과 동일 요청 재확인 버튼을 표시한다.
+
+useGameSession의 연결 순서는 createGame → attach → refresh → perform이다.
+initialize는 상태 점검/저장된 테이블 복구만 하고 새 게임/라운드를 자동 시작하지 않는다.
+새 사건은 기록에 합친 뒤 GET 상태를 갱신한다. 동시에 몰린 알림의 조회는 합치고,
+stream_cursor/event_id 비교와 mutationEpoch로 오래된 응답이 새 접수 결과를 덮어쓰지
+못하게 한다. generation으로 종료/화면 이동 이후 도착한 응답도 무시한다.
+RoundReady는 event_id가 그대로여도 stream_cursor가 바뀌므로 반영한다.
+
+발언/베팅은 최신 round_id와 event_id를 사용한다. 응답을 잃으면 다른 입력을 잠그고
+원래 request_id/본문으로 재확인한다. 자기 Speech 사건으로 접수가 확인되면 발언/보류
+공개의 불확실성도 해제한다. rejudge 거절은 최신 상태를 보여주고 사용자가 다시 선택한다.
+베팅 크기나 칩을 프런트에서 재계산하거나 상황 변경 후 자동으로 베팅하지 않는다.
+
+백엔드는 기존 GameSession.snapshot에 recent_events/is_silent와 rules의
+max_message_chars/event_history_limit만 보충했다. 새 엔드포인트나 프록시 변경은 없다.
+최근 사건은 현재 라운드의 공개 기록이며 한도를 적용한다. 새로고침 시 현재 상태와 최근
+말풍선/행동을 복구하지만 과거 모든 라운드의 정확한 상태 탐색은 별도 history 작업이다.
+MCPClient/OllamaLLM과 기존 게임 실행 경로를 그대로 사용한다.
+
+검증: Node 네트워크/세션 테스트 14개와 SFC 렌더링 검사, production build 통과.
+기존 서버 계약 테스트 11개 통과. 임시 포트/저장소의 fake 서버와 실제 Python 웹 프록시를
+사용한 통합 검사에서 인간 참여/AI-only 관전, 다음 라운드, 좌석 유지, 재접속, 종료를 확인했다.
+실제 Ollama 모델과 브라우저 화면/클릭은 이번 검증에서 실행하지 않았다.
+전체 Python 검사는 실행 당시 83개 중 82개 통과했다. 편집 중인 graph_practice.build_graph가
+더 이상 NotImplementedError를 던지지 않아 기존 스텁 가정 테스트 1개가 실패했다.
+이번 연결 작업에서 연습 파일과 해당 검사는 변경하지 않았다.

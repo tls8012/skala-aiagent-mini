@@ -38,7 +38,7 @@ defineEmits(['start-round', 'close-game', 'speak', 'silent', 'release-speech', '
       @start-round="$emit('start-round')" @close-game="$emit('close-game')" @return-live="$emit('return-live')">
       <slot name="setup" />
     </GameToolbar>
-    <slot name="preview" />
+    <slot name="notice" />
     <div class="game-screen__body">
       <PokerTable :ai-seats="view.aiSeats || []" :human-seat="view.humanSeat || null" :summary="view.summary || {}" :read-only="effectiveReadOnly" :motion-enabled="replay.mode !== 'replay'" @expand-speech="expandSpeech" />
       <EventLog ref="eventLog" :entries="entries" :selected-event-id="expandedEventId" :replay-available="false" />
@@ -46,7 +46,7 @@ defineEmits(['start-round', 'close-game', 'speak', 'silent', 'release-speech', '
     <HumanControls :participation="participation" :commands="commands" :remaining-utterances="remainingUtterances" :read-only="effectiveReadOnly" :deferred-speech="deferredSpeech"
       @speak="$emit('speak', $event)" @silent="$emit('silent')" @release-speech="$emit('release-speech')" @bet="$emit('bet', $event)" />
     <ReplayControls :rounds="[]" :position="0" :frame-count="0" :loading="false" />
-    <!-- TODO: 실제 서비스 상태는 useGameSession/useReplay에서 조립한다. -->
+    <!-- 정확한 과거 프레임은 백엔드 history API와 useReplay 구현 이후 연결한다. -->
   </main>
 </template>
 

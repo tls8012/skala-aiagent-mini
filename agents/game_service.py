@@ -119,11 +119,15 @@ class GameSession:
             'game_winner': table.game_winner, 'finished': table.finished,
             'observation': observation,
             'deferred_speech': pending.model_dump() if pending else None,
+            # 현재 라운드의 공개 기록만 보충한다. 개인 메모/자기 비공개 카드는 없다.
+            'recent_events': table.events_since(0)[-table.config.event_history_limit:] if r else [],
+            'is_silent': bool(r and self.human_id in r.conversation.silent),
             'can_start_next_round': self._state not in {'closed', 'failed'} and not running
                 and not table.finished and (r is None or r.phase == 'revealed'),
             'memory_status': self.memory_status, 'error': self._error,
             'rules': {name: getattr(table.config, name) for name in
-                      ('initial_chips', 'ante', 'target_chips', 'max_utterances', 'min_utterances')},
+                      ('initial_chips', 'ante', 'target_chips', 'max_utterances', 'min_utterances',
+                       'max_message_chars', 'event_history_limit')},
         }
 
     async def start_round(self, round_id: int) -> dict:

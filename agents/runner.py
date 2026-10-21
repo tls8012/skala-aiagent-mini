@@ -158,7 +158,7 @@ class RoundRunner:
         return await self._submit_input('human', player_id, command)
 
     async def release_human_speech(self, player_id: str, round_id: int, basis_event: int) -> CommandResult:
-        """연속 발언으로 보류된 원문을 인간이 최신 상황에서 재확인한 후 호출한다."""
+        """기존 보류 원문 재확인용 호환 경로. 인간의 새 연속 발언은 보류하지 않는다."""
         return await self._submit_input('release', player_id, (round_id, basis_event))
 
     async def _submit_input(self, kind, pid, payload) -> CommandResult:

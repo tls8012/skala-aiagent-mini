@@ -226,6 +226,20 @@ class PokerTest(PokerFixture, unittest.TestCase):
         self.assertEqual(self.command(t, 'A', 'speak', text='공개 후 발언').status, 'rejected')
         self.assertNotIn('A', t.round.result['revealed_cards'])
 
+    def test_human_can_speak_consecutively_but_quota_and_round_boundary_still_apply(self):
+        t = self.table(human=True)
+        t.start_round()
+        self.speak_all(t)
+        for _ in range(t.config.max_utterances - 1):
+            self.assertTrue(t.observe('human').can_speak)
+            self.assertEqual(self.command(t, 'human', 'speak', text='추가 발언').status, 'accepted')
+        self.assertNotIn('human', t.round.conversation.deferred)
+        self.assertEqual(t.round.conversation.counts['human'], t.config.max_utterances)
+        self.assertFalse(t.observe('human').can_speak)
+        self.assertEqual(self.command(t, 'human', 'speak', text='상한 초과').status, 'rejected')
+        self.finish_checks(t)
+        self.assertEqual(self.command(t, 'human', 'speak', text='종료 후').status, 'rejected')
+
     def test_failed_agent_remains_unable_to_speak_after_folding(self):
         t = self.table()
         t.start_round()

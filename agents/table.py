@@ -125,7 +125,7 @@ class Table:
             reason = self._speech_error(pid, cmd, interpretation)
             if reason:
                 return self._result('rejected', reason)
-            if c.last_speaker == pid:
+            if self.players[pid].kind == 'ai' and c.last_speaker == pid:
                 if pid in c.deferred:
                     return self._result('rejected', 'already has a deferred speech')
                 c.deferred[pid] = cmd
@@ -225,7 +225,7 @@ class Table:
                 r.conversation.deferred.pop(pid)
                 r.conversation.deferred_interpretations.pop(pid, None)
                 return self._result('rejected', reason)
-            if r.conversation.last_speaker == pid:
+            if self.players[pid].kind == 'ai' and r.conversation.last_speaker == pid:
                 return self._result('deferred', 'another speaker is required')
             r.conversation.deferred.pop(pid)
             r.conversation.deferred_interpretations.pop(pid, None)
@@ -298,7 +298,7 @@ class Table:
                 allowed_bets=r.betting.allowed(pid) if active and r.betting_open else [],
                 raise_options=r.betting.raise_options(pid) if active and r.betting_open else {},
                 can_speak=participant and r.phase == 'dialogue' and not c.exhausted(pid)
-                          and c.last_speaker != pid,
+                          and (self.players[pid].kind == 'human' or c.last_speaker != pid),
                 required_game_utterances=max(0, self.config.min_utterances-c.game_counts.get(pid, 0)),
                 last_speaker=c.last_speaker,
                 remaining_utterances=max(0, self.config.max_utterances - c.counts.get(pid, 0)),

@@ -4,9 +4,22 @@ import { watch } from 'vue';
 import { useGameSession } from '../src/composables/useGameSession.js';
 import { ApiError } from '../src/services/gameApi.js';
 import { toTableView } from '../src/adapters/toTableView.js';
+import { toCommandState } from '../src/adapters/toCommandState.js';
 
 const clone = value => structuredClone(value);
 const tick = () => new Promise(resolve => setImmediate(resolve));
+
+test('인간이 직전 발언자여도 서버가 허용하면 입력과 기존 보류 공개가 가능하다', () => {
+  const game = { game_id: 'g', round_id: 1, phase: 'dialogue', status: 'running', human_id: 'human',
+    players: [{ id: 'human', kind: 'human', eliminated: false, failed: false }],
+    observation: { can_speak: true, last_speaker: 'human', remaining_utterances: 4, allowed_bets: [] },
+    deferred_speech: { text: '기존 보류 원문' } };
+  const commands = toCommandState(game, { synchronized: true });
+  assert.equal(commands.canSpeak, true); assert.equal(commands.canRelease, true);
+  game.observation.can_speak = false; game.observation.remaining_utterances = 0;
+  const exhausted = toCommandState(game, { synchronized: true });
+  assert.equal(exhausted.canSpeak, false); assert.equal(exhausted.canRelease, false);
+});
 function fixture() {
   let state = { game_id: 'g', status: 'created', round_id: 0, event_id: 0, stream_cursor: 0,
     human_id: 'human', players: ['A', 'B', 'human'].map(id => ({ id, kind: id === 'human' ? 'human' : 'ai', chips: 30, eliminated: false, failed: false })),

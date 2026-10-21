@@ -50,17 +50,17 @@ class ReplayHistoryTests(unittest.TestCase):
         table.start_round()
         first = PlayerCommand(request_id='once', round_id=1, basis_event=table.event_id,
                               kind='speak', text='첫말')
-        table.submit('human', first)
+        table.submit('A', first)
         baseline = table.replay_history(1)
-        table.submit('human', first)
-        self.assertEqual(self.command(table, 'human', 'speak', text='보류').status, 'deferred')
+        table.submit('A', first)
+        self.assertEqual(self.command(table, 'A', 'speak', text='보류').status, 'deferred')
         self.assertEqual(self.command(table, 'B', 'bet', bet=Bet(action='check')).status, 'rejected')
         self.assertEqual(table.replay_history(1), baseline)
-        self.command(table, 'A', 'speak', text='끼어들기')
-        table.release_deferred('human', table.event_id)
+        self.command(table, 'B', 'speak', text='끼어들기')
+        table.release_deferred('A', table.event_id)
         frames = table.replay_history(1)['frames']
         self.assertEqual(frames[-1]['event']['text'], '보류')
-        self.assertEqual(frames[-1]['snapshot']['human_display']['remaining_utterances'], 3)
+        self.assertEqual(frames[-1]['snapshot']['human_display']['remaining_utterances'], 5)
         event = table.events[-1]
         self.assertEqual(table.history.capture(table, event), frames[-1]['frame_id'])
         self.assertEqual(len(table.replay_history(1)['frames']), len(frames))

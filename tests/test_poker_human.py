@@ -413,7 +413,7 @@ class HumanTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(any(m['request_id']=='join' for m in second_context))
         await self.finish(runner,task)
 
-    async def test_human_deferred_question_keeps_its_interpretation(self):
+    async def test_consecutive_human_questions_are_accepted_while_ai_thinks_and_keep_interpretations(self):
         table=Table(['A','B'],'human',config=self.config)
         entered=asyncio.Event()
         release=asyncio.Event()
@@ -426,23 +426,27 @@ class HumanTests(unittest.IsolatedAsyncioTestCase):
                 answered.append(event['request_id'])
                 return AgentDecision(round_id=observation.round_id,basis_event=observation.event_id,
                     speech='speak',text='답변 '+event['request_id'],channel='chat',target='human',reply_to=event['request_id'])
-        runner,task=await self.start(table,Backend,interpreter=Interpreter())
+        interpreter=Interpreter()
+        runner,task=await self.start(table,Backend,interpreter=interpreter)
         await self.spin_until(lambda:not runner._tasks)
         await runner.submit_human('human',self.command(table,'q1',text='질문1',target='B'))
         await entered.wait()
-        # B가 생각하는 동안 두 번째 발언은 보류된다. 다른 발언 후 인간이 재확인한다.
+        # B가 생각 중이어도 인간의 두 번째 발언은 즉시 공개하고 B의 질문 큐에 보관한다.
+        self.assertTrue(table.observe('human').can_speak)
         second=await runner.submit_human('human',self.command(table,'q2',text='질문2',target='B'))
-        self.assertEqual(second.status,'deferred')
+        self.assertEqual(second.status,'accepted')
+        self.assertNotIn('human',table.round.conversation.deferred)
+        self.assertEqual(table.round.conversation.counts['human'],2)
+        self.assertEqual(interpreter.calls,['질문1','질문2'])
         release.set()
         await self.spin_until(lambda:table.round.conversation.last_speaker=='B' and not runner._tasks)
-        released=await runner.release_human_speech('human',1,table.event_id)
-        self.assertEqual(released.status,'accepted')
+        self.assertEqual(answered,['q1'])  # AI의 연속 답변 제한은 유지한다.
+        await runner.submit_human('human',self.command(table,'game',text='나도 참가'))
         await self.spin_until(lambda:len(answered)==2)
         self.assertEqual(answered,['q1','q2'])
         self.assertEqual(table.round.conversation.counts['B'],1)
-        self.assertEqual(table.round.conversation.counts['human'],2)
+        self.assertEqual(table.round.conversation.counts['human'],3)
         await self.spin_until(lambda:not runner._tasks)
-        await runner.submit_human('human',self.command(table,'game',text='나도 참가'))
         await self.finish(runner,task)
 
 

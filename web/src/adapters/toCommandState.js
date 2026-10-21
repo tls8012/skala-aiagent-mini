@@ -12,7 +12,7 @@ export function toCommandState(game, { pending = false, synchronized = false, un
       : !open ? '라운드가 열리면 입력할 수 있어요.' : null,
     canSpeak: open && Boolean(observation.can_speak),
     canDeclareSilent: open && !game.is_silent && (observation.required_game_utterances === 0 || remaining === 0),
-    canRelease: open && Boolean(game.deferred_speech) && remaining > 0 && observation.last_speaker !== game.human_id,
+    canRelease: open && Boolean(game.deferred_speech) && remaining > 0,
     isSilent: Boolean(game?.is_silent), maxMessageChars: game?.rules?.max_message_chars,
     allowedBets: open ? observation.allowed_bets : [], raiseOptions: open ? observation.raise_options : {}, error, speechReceipt };
 }

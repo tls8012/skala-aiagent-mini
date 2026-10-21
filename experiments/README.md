@@ -1,7 +1,68 @@
 # 엔진 기반 실험 구현 명세
 
-이 폴더는 현재 **명세만** 포함한다. 아래 Python 파일/fixture/출력 형식은 앞으로 구현할 계약이다.
+세 단계의 실행기와 시간/입력/출력 로그를 구현했다. 아래 단계별 명세를 실행 코드와 함께 사용한다.
 실험 결과는 루트 [exp_log.md](../exp_log.md)에 실행 ID와 함께 요약한다.
+
+## 실행과 로그 확인
+
+프로젝트 루트에서 실행한다. 웹 서버나 게임 서버를 띄울 필요가 없고, Ollama 모드에서는
+로컬 Ollama와 config에 지정된 판단/임베딩 모델이 필요하다. 새 라이브러리는 추가하지 않았다.
+
+```sh
+# 먼저 모델 호출 없이 엔진/그래프/로그 배선 확인
+.venv/bin/python -m experiments.run --stage 1 --cases 1 --backend fake
+
+# 실제 모델 실험: 같은 30개 상황을 각 조건에 대응시킨다
+.venv/bin/python -m experiments.run --stage 1 --cases 30
+.venv/bin/python -m experiments.run --stage 2 --cases 30
+.venv/bin/python -m experiments.run --stage 3 --cases 30
+
+# 한 조건만 소량 확인하거나 모델을 바꿀 때
+.venv/bin/python -m experiments.run --stage 2 --cases 1 --conditions search_only --model qwen3:8b
+```
+
+기본 backend는 ollama다. `--backend fake`에서는 실제 그래프/게임 엔진/파일 메모는 사용하지만
+모델과 검색 결과는 smoke용 응답이다. manifest의 evidence_run=false로 구분하며 성능 근거로 쓰지 않는다.
+cases는 1..30, 기본 30이다. 1단계 3조건, 2단계 4조건, 3단계 상대별 2조건이 기본이다.
+`--conditions`에 해당 단계의 이름을 여러 개 넘기면 일부 조건만 실행한다.
+`--seed`, `--output`, `--timeout`(판단/라운드), `--index-timeout`(도구 준비)을 바꿀 수 있다.
+일부 시행이 실패해도 나머지를 실행하고 종료 코드는 1로 반환한다. 원본 실패 로그는 남는다.
+CLI는 외부 LangSmith 전송을 끄고 로컬 파일에 기록한다.
+
+결과는 `experiments/results/<run_id>/`에 생성되고 버전 관리에서 제외한다.
+
+| 파일 | 확인할 내용 |
+|---|---|
+| summary.md / summary.json | 조건별 결과, 대응 비교, 노드·모델·도구 평균/중앙값/p95/합계 시간 |
+| responses.csv | 개별 모델 요청의 응답 시간, call_id/decision_id/trial_id, 성공/오류, 토큰 수 |
+| timings.csv / timings.jsonl | 전체 구간 타임라인과 각 노드 실행/검증 재시도/취소/오류 시간 |
+| model_calls.jsonl | 최종 system/user/schema와 실제 모델 원문·usage. call_id로 시간과 연결 |
+| decisions.jsonl / events.jsonl | 입력·제안·실제 행동 접수·확정 사건. decision_id로 연결 |
+| tools.jsonl / research.jsonl / contexts.jsonl | 메모 입력/저장 read-back, 마스킹/쓰기 억제, 실제 검색 결과 |
+| trials.jsonl / rounds.jsonl / errors.jsonl | 사례별 상태/유효 여부, 정산·칩 변화, 실패. 데이터가 없으면 해당 파일은 생성하지 않음 |
+| review.csv | 발언/메모 근거를 사람이 평가할 자리. 보고서 재생성 시 기존 평가를 덮어쓰지 않음 |
+| manifest.json / data/ | 실제 설정/모델 digest/코드 해시/전체 시간 및 격리된 공개 경험·메모·아카이브 |
+
+보고서를 다시 만들려면 `.venv/bin/python -m experiments.report experiments/results/<run_id>`를 쓴다.
+자동 집계는 행동과 시간에 한정한다. 모델의 근거가 사실에 맞는지는 review.csv에서 평가한다.
+
+### 시간의 의미
+
+- perf_counter 기반 초 단위 경과 시간을 기록하고 UTC 기록 시각/실행 시작 기준 offset도 남긴다.
+- manifest.total_duration_s는 기록기 시작부터 준비/시행/MCP 정리까지다. 그 뒤의 보고서 파일 생성은 제외한다.
+- trial_total은 개별 조건의 상태 준비·도구 연결·판단/라운드·정리 시간이다. 공용 과거 뱅크 생성은 별도 preparation이다.
+- LangGraph callback에서 route/research/answer/validate/remember의 실제 각 실행을 측정한다.
+  검증 재시도도 별도 span이며, summary 경로도 기존 answer/remember 이름으로 기록한다.
+- model/ollama_complete는 기존 동기 HTTP complete()의 왕복 시간이다. 서버 큐·모델 로딩·생성·전송을 포함한다.
+  스트리밍이 아니므로 첫 토큰 시간(TTFT), 순수 GPU 생성 시간이나 prefill/decode 분리는 제공하지 않는다.
+- tool 시간은 MCP 왕복(클라이언트 락 대기 포함)이다. 검색 내부 임베딩/Chroma 각각의 시간은 기존 도구가
+  반환하지 않으므로 분해하지 않는다. 색인 준비·probe는 preparation, 실제 검색은 research/tool로 구분한다.
+- 하위 시간을 포함하는 inclusive span이다. answer 안에 모델/메모 읽기 시간이 포함되므로 합산하면 중복이다.
+  병렬 실행/취소도 있어 노드 합계를 실제 전체 시간으로 취급하지 않는다. JSON의 status_counts로 상태도 본다.
+- 모델이 차가운지 따뜻한지는 강제로 맞추지 않는다. 최초 모델 로딩이 포함될 수 있고 조건 순서는 시드로 섞어 기록한다.
+  메모 read-back 등 관찰 오버헤드도 포함되며 별도 audit span을 남긴다.
+- 그래프 취소 이후에도 동기 HTTP 요청은 스레드에서 끝날 수 있다. 응답과 시간 로그가 끝날 때까지
+  model_inflight_drain으로 기다린 뒤 다음 조건으로 넘어간다. 원래 HTTP 제한 시간은 기존 클라이언트를 따른다.
 
 ## 1. 읽는 순서와 범위
 
@@ -46,27 +107,28 @@ Ollama 판단 호출은 실제로 수행한다. fake는 배선 점검에만 사�
 Table(['A', 'B']) 또는 Table(['A', 'C'])는 현재의 AI 최소 2명 조건을 충족한다.
 heads-up을 위해 엔진 인원 제한을 바꾸거나 가짜 세 번째 참가자를 만들 필요가 없다.
 
-## 3. 만들 파일과 역할
+## 3. 파일과 역할
 
-과도한 프레임워크 대신 단계별 실행기와 작은 공통 도우미로 나눈다. 아래는 미구현 계획이다.
+단계별 진입점과 공통 실행/관찰 코드를 나눈다. 모델 판단/규칙은 기존 코드를 재사용한다.
 
-| 예정 파일 | 클래스/함수 책임과 연결점 |
+| 파일 | 클래스/함수 책임과 연결점 |
 |---|---|
-| run.py | 단계/조건/사례 수/결과 경로를 받아 해당 실행기를 호출. 신규 CLI는 구현 후 문서화 |
-| common.py | ExperimentConfig, Scenario, RunRecorder. 조건표·경로·manifest·대응 키·JSONL 기록 |
-| fixtures.py | build_table(), prepare_case(). Card/PlayerCommand로 합법적인 판단 시점 생성 및 검증 |
-| backends.py | ExperimentPokerLLM(research 제어), ToolGate(MCP 위임/메모 마스킹), RecordingLLM(관찰 전용) |
+| run.py | CLI, 모델 확인, 단계 선택과 보고서 생성 |
+| common.py | ExperimentConfig, RunRecorder, NodeTimingHandler, ObservedTable. JSONL/시간/행동 접수 관찰 |
+| fixtures.py | Scenario/scenarios(), build_table(), history_bank(), memoir(). 실제 엔진으로 고정 상황/과거 자료 생성 |
+| backends.py | ExperimentPokerLLM, ToolGate, RecordingClient, ObservedGraph. 조건 제어와 관찰 |
+| execution.py | run_cases()/run_trial(). 조건별 격리/검색 준비/판단 또는 라운드 실행과 실패 수집 |
 | stage1.py | 30개 고정 판단 상황 × 3정보 조건. 한 결정과 실제 적용 결과 수집 |
 | stage2.py | 30개 고정 판단 상황 × 네 조건. 실제 검색 준비/메모 입력과 출력 추적 |
 | stage3.py | RoundRunner로 A–B/A–C 독립 라운드 실행. 조건 대응과 칩 정산 확인 |
-| opponents.py | AggressivePolicy/DefensivePolicy. ainvoke 입력/decision 출력 계약, 메모/검색/LLM 없음 |
+| opponents.py | FixedPolicy의 aggressive/defensive/reference 정책. 메모/검색/LLM 없음 |
 | report.py | 행동 변화·근거 평가·칩 대응 차이·오류/지연/호출 수 요약. 원본 로그는 변경하지 않음 |
-| scenarios/ | 향후 고정 사례 JSON과 데이터 설명. 현재 카드·공개 준비 명령·과거 기록·메모·평가 기준을 구분 |
-| results/<run_id>/ | 향후 manifest.json, decisions.jsonl, rounds.jsonl, review.csv, summary.md, 격리된 data/ |
+| results/<run_id>/ | manifest/원본 JSONL/CSV/요약/격리된 data. 사례는 코드+시드로 생성하고 trials.scenario에 저장 |
 
 내부 실험 설정/집계에는 dataclass와 dict를 사용해도 된다. 기존 GraphInput/AgentDecision/
 PlayerCommand 등 외부 경계 계약은 그대로 검증한다. 프로덕션 코드 변경은 실제 연결에
-필요한 최소 관찰 훅이 확인될 때만 검토하며, 이번 명세 작업에서 런타임 코드는 수정하지 않는다.
+필요한 최소 관찰 훅이 확인될 때만 검토한다. 현재 구현은 실험용 하위 클래스/콜백을 사용하며
+기존 agents/agent의 실행 코드는 수정하지 않았다.
 
 ## 4. 정보 조건 제어
 
@@ -116,6 +178,11 @@ GameTools._load는 경험 파일이 없으면 기본 20판을 자동 생성한�
 기존 store_experience/공개 기록 검증/색인 경로를 재사용한다. 필요하면 store_experience의
 20개 FIFO를 채우는 준비 라운드를 먼저 적재하고, 실제 유지된 ID/본문을 검사한다.
 일반 데모의 기본 20판을 특정 B/C의 성향 근거로 간주하지 않는다.
+
+현재 구현은 history_bank가 별도 엔진 라운드 20개를 완료하고 _public_record로 검증한
+공개 export를 경험 파일에 먼저 넣는다. 이후 실제 MCP 검색으로 기존 색인 경로를 시작한다.
+서로 독립된 과거 라운드의 번호는 뱅크 내 순번으로 정규화하며, 원래 game_id/round_id와
+본문 해시는 fixture-provenance.json에 보존한다. 현재 평가 라운드는 경험 뱅크에 자동 추가하지 않는다.
 
 2/3단계는 인덱싱 종료와 오류 없음, 사전 probe 검색의 ready 및 예상 자료 존재를 확인하고 시작한다.
 준비 단계 호출/시간과 측정 단계 호출/시간을 분리한다. ready여도 실제 질의가 엉뚱한 사건을

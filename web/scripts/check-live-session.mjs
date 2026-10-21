@@ -3,10 +3,13 @@ import assert from 'node:assert/strict';
 import { createGameApi } from '../src/services/gameApi.js';
 import { subscribeGameEvents } from '../src/services/eventStream.js';
 import { useGameSession } from '../src/composables/useGameSession.js';
+import { useReplay } from '../src/composables/useReplay.js';
 
 const baseUrl = process.argv[2];
 if (!baseUrl) throw new Error('테스트 프록시 URL이 필요합니다.');
 const sessions = [];
+const replays = [];
+function replayFor(session) { const replay = useReplay(session); replays.push(replay); return replay; }
 function storage() { let value = null; return { read: () => value, write: next => { value = next; } }; }
 function create(store = storage()) {
   const session = useGameSession({ api: createGameApi({ baseUrl }), storage: store,
@@ -44,13 +47,34 @@ try {
   const seats = first.view.value.aiSeats.map(seat => [seat.playerId, seat.position, seat.color]);
   await first.startRound();
   assert.equal(first.view.value.humanSeat.card.visibility, 'back');
+  const replay = replayFor(first);
+  await replay.refreshRounds();
+  const started = first.entries.value.find(entry => entry.type === 'RoundStarted');
+  assert.ok(started.frameId);
+  await replay.seekFrame(started.frameId);
+  assert.equal(replay.selectedFrame.value.event_id, started.eventId);
+  assert.equal(replay.displayView.value.humanSeat.card.visibility, 'back');
+  let blocked = 0; replay.runLive(() => { blocked += 1; }); assert.equal(blocked, 0);
+  const oldScene = structuredClone(replay.selectedFrame.value);
+  // 진입 전에 보낸 명령/다른 연결이 진행하는 상황을 흉내 낸다. UI 변경 경계는 위에서 차단된다.
   await speakAndCheck(first, '나도 참가할게');
+  await replay.refreshRounds();
+  assert.deepEqual(replay.selectedFrame.value, oldScene);
+  assert.equal(replay.displayView.value.summary.phase, 'dialogue');
+  assert.ok(replay.state.value.unreadCount > 0);
+  replay.step('last');
+  assert.equal(replay.mode.value, 'replay');
+  assert.equal(replay.displayView.value.summary.phase, 'revealed');
+  replay.returnLive();
   assert.equal(first.liveState.value.phase, 'revealed');
   assert.equal(new Set(first.entries.value.map(entry => entry.id)).size, first.entries.value.length);
   assert.ok(first.entries.value.some(entry => entry.text === '나도 참가할게'));
   await first.startRound();
   assert.equal(first.liveState.value.round_id, 2);
   assert.deepEqual(first.view.value.aiSeats.map(seat => [seat.playerId, seat.position, seat.color]), seats);
+  await replay.selectRound(1, started.frameId);
+  assert.deepEqual(replay.selectedFrame.value, oldScene);
+  replay.dispose();
   first.dispose(); // 브라우저를 나갔다가 돌아오는 것처럼 구독만 끊는다.
   const restored = create(saved);
   await restored.initialize();
@@ -58,8 +82,15 @@ try {
   assert.equal(restored.liveState.value.round_id, 2);
   assert.equal(restored.view.value.humanSeat.card.visibility, 'back');
   assert.ok(restored.entries.value.some(entry => entry.type === 'Speech' && entry.roundId === 2));
+  const restoredReplay = replayFor(restored);
+  await restoredReplay.refreshRounds();
+  assert.deepEqual(restoredReplay.rounds.value.map(round => round.round_id), [1, 2]);
+  await restoredReplay.selectRound(1, started.frameId);
+  assert.deepEqual(restoredReplay.selectedFrame.value, oldScene);
+  restoredReplay.returnLive();
   await speakAndCheck(restored, '돌아왔어. 다음 판단을 보자');
   await restored.closeGame();
+  assert.equal(restoredReplay.state.value.available, false); assert.equal(restoredReplay.rounds.value.length, 0);
   assert.equal(restored.liveState.value.status, 'closed'); assert.equal(saved.read(), null);
 
   const spectator = create(); await spectator.initialize();
@@ -72,6 +103,12 @@ try {
   assert.equal(spectator.liveState.value.phase, 'revealed');
   assert.equal(spectator.commands.value.canSpeak, false);
   assert.ok(spectator.view.value.aiSeats.every(seat => seat.card.visibility === 'face'));
+  const spectatorReplay = replayFor(spectator);
+  await spectatorReplay.selectRound(1);
+  assert.equal(spectatorReplay.displayView.value.aiSeats.every(seat => seat.card.visibility === 'back'), true);
+  spectatorReplay.step('last');
+  assert.equal(spectatorReplay.displayView.value.aiSeats.every(seat => seat.card.visibility === 'face'), true);
+  spectatorReplay.returnLive();
   await spectator.closeGame();
-  console.log('Live integration passed: real proxy + SSE, human/AI-only rounds, next round, stable seats, reload recovery, close.');
-} finally { for (const session of sessions) session.dispose(); }
+  console.log('Live integration passed: real proxy + SSE, human/AI-only rounds, exact replay, live updates during replay, prior-round reload, close cleanup.');
+} finally { for (const replay of replays) replay.dispose(); for (const session of sessions) session.dispose(); }

@@ -17,7 +17,8 @@ export function toTableView(gameState, publicEvents = []) {
     const visible = game.visible_cards?.[player.id];
     const inRound = game.round_id > 0 && (!player.eliminated || visible || folded);
     // 자기 카드는 공개 전에는 항상 비공개. AI-only 관전도 공개 전에는 앞면을 받지 않는다.
-    const maySeeFace = game.phase === 'revealed' || Boolean(game.observation) && !human;
+    const playerPerspective = game.perspective == null ? Boolean(game.observation) : game.perspective === 'player';
+    const maySeeFace = game.phase === 'revealed' || playerPerspective && !human;
     const card = !inRound ? { visibility: 'absent' } : folded ? { visibility: 'back' }
       : maySeeFace && visible ? { visibility: 'face', rank: visible.rank, suit: visible.suit } : { visibility: 'back' };
     const speech = latestSpeech.get(player.id);

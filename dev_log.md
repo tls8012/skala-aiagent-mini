@@ -1434,3 +1434,57 @@ MCPClient/OllamaLLM과 기존 게임 실행 경로를 그대로 사용한다.
 전체 Python 검사는 실행 당시 83개 중 82개 통과했다. 편집 중인 graph_practice.build_graph가
 더 이상 NotImplementedError를 던지지 않아 기존 스텁 가정 테스트 1개가 실패했다.
 이번 연결 작업에서 연습 파일과 해당 검사는 변경하지 않았다.
+
+### 현재 게임의 기록 선택과 과거 화면 — 구현 명세 확정
+
+사용자와 합의한 범위를 web/UI_SPEC.md 7절에 구체화했다. 현재 game_id의 모든 라운드를
+메모리에 보관하고, 기록을 클릭하면 그 사건 직후의 카드/칩/판돈/말풍선 상태를 보여준다.
+진행 중에도 확정된 사건을 볼 수 있고 실제 엔진/SSE는 계속 진행한다. 게임 finished 후에도
+테이블을 닫기 전까지 기록을 유지한다. DELETE/서버 재시작으로 폐기하며 새 영구 저장은 없다.
+
+명세에는 Table의 상태 반영 완료 시점별 저장, ReplayHistory 객체와 최소 공개 스냅샷,
+현재 게임의 /history 및 라운드별 /history?round_id 조회, 원본 RAG 기록을 바꾸지 않는
+SSE/recent_events의 frame_id 연결을 작성했다. 현재 _emit('Speech')는 Conversation.add보다
+먼저 실행되므로 무조건 _emit에서 저장하면 안 된다는 연결상의 주의점도 명시했다.
+
+프런트는 liveState와 선택 프레임을 분리하고 기록 클릭/라운드/이전·다음/슬라이더/현재 복귀를
+기존 표시 컴포넌트에 연결한다. 과거를 보는 동안 모든 게임 변경 경로를 막되 최신 사건은
+별도로 수신한다. 나중 공개된 카드의 역반영, 늦은 조회의 선택 덮어쓰기, 기록 버퍼 FIFO에
+의한 과거 장면 유실을 막는 조건과 완료 검증 항목을 포함했다.
+이번 작업은 명세 문서 정리이며 기능 구현/API 추가는 아직 수행하지 않았다.
+
+### 현재 게임의 기록 선택과 과거 화면 — 구현
+
+위 명세에 따라 현재 game_id의 모든 라운드를 사건 단위로 탐색하도록 연결했다.
+우측 발언/사건 행 또는 '이 시점 보기'를 누르면 해당 사건 직후의 테이블을 보여준다.
+하단의 라운드 선택, 처음/이전/다음/마지막, 슬라이더, 현재 복귀를 사용할 수 있다.
+과거를 보는 동안 엔진/SSE는 계속 진행하고 선택 화면은 고정되며 새 사건 수를 표시한다.
+캐릭터 눈 모션은 멈추고 생성/발언/침묵/보류 공개/베팅/시작/종료/요청 재확인을 막는다.
+
+- agents/replay_history.py — ReplayHistory가 라운드별 프레임, 사건→frame_id와 최신 표시 사건을
+  보관한다. capture에서 당시 허용된 카드/칩/판돈/차례/발언/인간 잔여 횟수를 깊은 복사한다.
+  get_round도 복사본을 반환한다. 전체 대화나 다른 프레임을 스냅샷 안에 중첩하지 않는다.
+- agents/table.py — 기존 상태 변경 지점에 capture를 연결했다. Speech는 _emit에서 저장을
+  보류하고 Conversation.add/잡담 응답 반영 뒤 저장한다. BetPlaced는 후속 자동 행동/정산 전,
+  RoundEnded는 지급/탈락/우승 반영 후 저장한다. 거절/중복/보류에는 새 프레임이 없다.
+- agents/game_service.py / server.py — 기존 Bearer 인증으로 GET /games/{id}/history는 목록,
+  ?round_id=N은 프레임을 반환한다. 원본 Table.events 대신 SSE/recent_events의 전송 복사본에만
+  frame_id를 붙여 RAG/JSON/MCP 계약을 유지했다. 웹 프록시의 기존 일반 중계를 재사용한다.
+- web/src/composables/useReplay.js — 실시간 상태와 별도로 선택/캐시/조회 수명을 관리한다.
+  frame_id로 합치며 기존 프레임을 덮어쓰지 않는다. 빠른 연속 선택과 게임 전환의 늦은 응답을
+  무시하고 조회 실패 시 이전 표시/재시도/현재 복귀를 제공한다. runLive가 명령 전달도 차단한다.
+- LiveGame.vue / GameScreen.vue / EventLog.vue / ReplayControls.vue — 선택 snapshot과
+  display_events를 기존 toTableView/표시 컴포넌트에 연결했다. 상단 상태/입력 초안/접수 결과는
+  실시간 맥락을 유지하고 선택 프레임의 잔여 횟수만 표시한다. 실제 세션 토큰은 조회 클로저에 둔다.
+
+SSE FIFO나 다음 라운드의 events 초기화와 별도로 메모리 기록을 보존한다. 게임 finished는
+기록을 유지하고 DELETE/서버 재시작은 폐기한다. 같은 테이블의 새로고침 후에도 이전 라운드를
+다시 조회할 수 있다. 기존 게임을 되감거나 새 LLM/MCP 호출로 과거 장면을 만들지 않는다.
+파일별 연결 설명과 실행법은 web/CONNECTION_GUIDE.md, 구현 계약은 web/UI_SPEC.md에 갱신했다.
+
+검증: 새 리플레이 Python 검사 6개, 서버 계약 검사 13개 통과. Node 검사 23개와 Vue SFC 렌더링,
+production build 통과. 임시 fake 서버와 실제 Python 웹 프록시의 통합 검사에서 정확한 프레임,
+과거 고정 중 실제 진행/SSE, 이전 라운드 새로고침 복구, AI-only 카드 비공개, 종료 정리를 확인했다.
+실제 Ollama/브라우저 배치·클릭 시각 검증은 수행하지 않았다. 전체 Python 검사 91개 중 90개 통과,
+나머지는 사용자 편집 중인 graph_practice가 NotImplementedError를 던진다고 가정하는 기존 검사다.
+연습 파일과 그 검사는 이번 작업에서 변경하지 않았다.

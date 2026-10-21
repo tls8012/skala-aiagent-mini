@@ -19,6 +19,9 @@ npm run dev --prefix web
 http://127.0.0.1:5173 에서 AI 인원과 참여 여부를 선택하고 테이블을 만든다.
 이어 첫 라운드 시작 → 발언 → 자신의 베팅 차례에 행동 → 공개 → 다음 라운드 순서다.
 상황이 바뀌어 베팅이 거절되면 최신 상태를 보고 다시 선택한다.
+우측 발언/사건을 클릭하면 당시 테이블로 이동한다. 하단에서 라운드를 고르거나
+처음/이전/다음/마지막·슬라이더로 탐색하고 '현재로 돌아가기'로 최신 화면을 본다.
+과거를 보는 동안 실제 게임은 계속 진행하며 모든 게임 입력은 잠긴다.
 기본 fake 모드는 실제 LLM/MCP를 호출하지 않는다. `LLM_BACKEND=ollama`로 서버를
 실행하면 기존 Ollama/MCP 경로를 사용하며 화면의 연결 안내에 모델을 표시한다.
 
@@ -37,6 +40,8 @@ App → LiveGame → GameScreen → GameSetup / GameToolbar / HumanControls
                  ├─ eventStream ← SSE ← 웹 프록시 ← server.py
                  ├─ toTableView / toCommandState → 표시/입력 props
                  └─ publicEvents → 기록과 말풍선
+          └─ useReplay → 세션의 기록 조회 → replayApi/gameApi → /history
+                 └─ 선택 snapshot → toTableView → 같은 테이블 컴포넌트
 ```
 
 `App.vue`는 실제 화면과 예시 화면 선택만 맡는다. `LiveGame.vue`는 세션의 값을
@@ -56,6 +61,8 @@ HTTP 호출이나 Bearer 토큰을 넣지 않는다.
 | checkHealth | GET /health |
 | createGame | POST /games |
 | getGame | GET /games/{id} |
+| listReplayRounds | GET /games/{id}/history |
+| getReplayFrames | GET /games/{id}/history?round_id=N |
 | startRound | POST /games/{id}/rounds |
 | submitCommand | POST /games/{id}/commands |
 | releaseSpeech | POST /games/{id}/commands/release |
@@ -129,16 +136,40 @@ SSE와 현재 상태가 아직 맞지 않거나 재확인이 필요한 동안에
 메모리로 계속 실행한다. 브라우저를 새로 열었거나 서버가 재시작돼 게임이 없어졌다면
 새 테이블을 만들어야 한다.
 
+## 5. useReplay.js — 실시간과 과거 화면 분리
+
+`useGameSession`은 계속 최신 상태와 SSE/입력 초안/접수 결과를 관리한다.
+토큰을 클로저에 둔 `readHistory()`가 replayApi의 조회를 호출하므로 useReplay나 화면에는
+토큰을 전달하지 않는다. 기록을 선택해도 liveState를 과거 상태로 덮어쓰지 않는다.
+
+- `refreshRounds()`: 현재 게임의 라운드 목록을 읽는다. 새 SSE 상태마다 목록을 갱신하되
+  진행 중 조회는 합친다. 보는 라운드에 새 프레임이 있으면 캐시에 추가하고 선택은 유지한다.
+- `selectRound()/seekFrame()`: 라운드를 조회한 뒤 정확한 frame_id를 선택한다. 선택 번호로
+  늦은 응답의 화면 덮어쓰기를 막고 game_id 세대로 다른 게임의 응답을 버린다.
+- `seekPosition()/step()`: 선택 라운드의 프레임 배열 안에서 이동한다. 사건 번호는 인덱스가 아니다.
+- `returnLive()`: 선택 화면을 해제하고 이미 갱신된 최신 화면으로 복귀한다.
+- `runLive()`: LiveGame에서 생성/시작/종료/발언/침묵/보류 공개/베팅/요청 재확인의 모든
+  전달 경로를 검사한다. replay 중에는 함수를 실행하지 않는다. 조회와 연결 확인만 허용한다.
+
+`LiveGame`이 displayView/displayEntries/과거의 남은 횟수를 선택한다. 입력의 contextKey와
+접수 결과는 실시간 값을 유지하고 베팅 선택지는 과거 화면에서 비운다. 따라서 과거 탐색이
+입력 초안을 이전 라운드로 바꾸지 않는다. 과거 화면에서는 눈 애니메이션도 멈춘다.
+실패하면 이전 표시를 유지하고 재조회/현재 복귀를 제공한다. 삭제/404/게임 변경 시 캐시를 지운다.
+
 ## 백엔드에서 추가한 것
 
-기존 `GameSession.snapshot()`에 `recent_events`, `is_silent`와 rules의
-`max_message_chars`/`event_history_limit`만 추가했다. recent_events는 현재 라운드의
-공개 사건이며 설정된 한도까지만 반환한다. 새 엔드포인트/게임 엔진/프록시는 만들지 않았다.
+`agents/replay_history.py`의 `ReplayHistory`는 프레임/라운드/사건 링크를 메모리에 보관한다.
+`Table._emit()`이 상태 변경 직후 capture를 호출한다. Speech는 Conversation.add와 응답 상태를
+반영한 다음 별도로 저장한다. 마지막 BetPlaced와 정산 RoundEnded도 별개의 정확한 상태다.
+생성/조회 모두 깊은 복사를 사용하며 당시 허용된 카드와 최신 발언/행동만 스냅샷에 담는다.
 
-재접속하면 현재 라운드의 공개 기록과 현재 상태를 복구한다. 접속 중에는 이전 라운드
-사건도 브라우저 메모리에 한도까지 유지한다. 페이지를 다시 열었을 때 과거 모든 라운드의
-화면을 복구하거나 사건별 카드/칩 상태를 탐색하는 리플레이는 아직 구현하지 않았다.
-현재 상태 조회로 정확한 과거 프레임을 만들어내지 않는다.
+`GameSession`은 기존 인증을 거쳐 history를 조회하고 SSE/recent_events의 복사본에 frame_id만
+붙인다. 원본 Table.events/JSON/RAG/MCP 계약은 유지한다. `server.py`에 history GET 하나를
+추가했으며 목록/라운드는 쿼리로 구분한다. 웹 프록시는 기존 일반 중계를 그대로 사용한다.
+
+SSE/recent_events FIFO가 밀려나도 현재 게임의 모든 라운드는 조회할 수 있다. 게임 finished는
+기록을 보존하고 DELETE/서버 재시작은 폐기한다. 새로고침하면 현재 화면으로 접속한 뒤
+라운드 선택으로 과거를 다시 조회한다. 이전 game_id 보관함/영구 저장/자동 재생은 제공하지 않는다.
 
 ## 검증
 
@@ -148,7 +179,9 @@ npm run build --prefix web
 .venv/bin/python tests/run_web_integration.py
 ```
 
-Node 검사는 인증/분할 SSE/중복/재연결/재동기화/접수 불명확 재확인/늦은 GET/권한과
-카드 비공개를 확인한다. 마지막 통합 검사는 임시 저장소와 임시 포트에 fake 서버와
-실제 Python 웹 프록시를 띄워 인간/AI-only 라운드, 다음 라운드, 재접속, 종료를 확인한다.
+Node 검사는 인증/SSE/재연결/요청 재확인 외에 정확한 프레임 이동, 빠른 연속 선택,
+조회 실패/재시도, 실시간 갱신 중 과거 고정, 캐시 정리와 명령 차단을 확인한다.
+Python 검사는 사건 경계/깊은 복사/카드 비공개/FIFO와 별도 보관/history 인증을 확인한다.
+마지막 통합 검사는 임시 저장소와 임시 포트에 fake 서버와 실제 Python 웹 프록시를 띄워
+인간/AI-only 라운드, 실제 진행 중 과거 고정, 이전 라운드 새로고침 복구, 종료 정리를 확인한다.
 실제 모델이나 MCP는 호출하지 않는다. 브라우저 배치/클릭의 시각 검증과는 별개다.

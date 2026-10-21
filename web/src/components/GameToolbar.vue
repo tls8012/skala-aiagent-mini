@@ -39,7 +39,7 @@ function closeGame() {
         <h1>인디언 포커</h1>
       </div>
       <div class="game-toolbar__status" role="status">
-        <span v-if="sessionSummary.roundId > 0" class="game-toolbar__round">ROUND {{ sessionSummary.roundId }}</span>
+        <span v-if="sessionSummary.roundId > 0" class="game-toolbar__round">{{ readOnly ? '현재 ' : '' }}ROUND {{ sessionSummary.roundId }}</span>
         <span>{{ statusLabel }}</span>
         <span v-if="sessionSummary.participation" class="game-toolbar__participation">{{ sessionSummary.participation === 'playing' ? '플레이 중' : '관전' }}</span>
         <span v-if="readOnly" class="game-toolbar__replay">기록 보는 중</span>

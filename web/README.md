@@ -16,11 +16,15 @@ App.vue는 조립만 맡는다. CDN용 JS 컴포넌트는 제거했다.
 실제 화면은 생성 → 첫 라운드 시작 → 발언/베팅 → 공개 → 다음 라운드/종료 흐름이다.
 SSE 알림과 HTTP 상태 조회, 재연결, 한 탭의 sessionStorage 재접속, 동일 요청 재확인을 지원한다.
 예시 화면에서는 '입력 상태 예시'로 폴드/발언 소진/보류/다음 라운드를 확인하고 실제 게임은 실행하지 않는다.
-정확한 과거 상태 탐색은 TODO다. 페이지를 열면 새 게임을 자동 생성하지 않고 저장된 세션만 복구한다.
+현재 게임의 기록을 클릭하면 그 사건 직후의 테이블로 이동한다. 라운드 선택, 처음/이전/다음/마지막,
+슬라이더와 '현재로 돌아가기'를 지원한다. 과거를 보는 동안 게임/SSE는 계속 진행하고 입력은 차단한다.
+기록은 서버 메모리에 보관하며 같은 테이블로 새로고침하면 다시 조회한다. DELETE/서버 재시작 시 사라진다.
+페이지를 열면 새 게임을 자동 생성하지 않고 저장된 세션만 복구한다. 메모리 보관/API/화면 분리 계약은
+[UI_SPEC.md 7절](UI_SPEC.md#7-현재-게임의-사건-선택과-과거-화면-탐색--구현-명세)에 정리했다.
 
 ## 읽는 순서
 
-1. [UI_SPEC.md](UI_SPEC.md): 요구사항, 컴포넌트 계약, 리플레이 선행 작업.
+1. [UI_SPEC.md](UI_SPEC.md): 요구사항, 컴포넌트 계약, 리플레이 구현 계약.
 2. [CONNECTION_GUIDE.md](CONNECTION_GUIDE.md): 실제 연결 흐름/함수 설명/실행/검증.
 3. [src/App.vue](src/App.vue), [src/views/LiveGame.vue](src/views/LiveGame.vue): 화면과 세션 조립.
 4. [src/components/table/PlayerSeat.vue](src/components/table/PlayerSeat.vue): 캐릭터/카드/말풍선 조립.
@@ -41,7 +45,7 @@ LLM_BACKEND=fake .venv/bin/python server.py
 .venv/bin/python web_demo_server.py
 ```
 
-기존 서버 프로세스가 실행 중이었다면 새 snapshot 필드가 반영되도록 재시작한다.
+기존 서버 프로세스가 실행 중이었다면 새 history API가 반영되도록 재시작한다.
 실제 모델로 실행할 때는 backend 서버를 `LLM_BACKEND=ollama`로 시작한다. Ollama/MCP 구성은 기존 코드를 재사용한다.
 Vite는 `/games`와 `/health`만 기존 웹 프록시 8600으로 중계한다.
 API와 SSE의 인증/실행 로직을 개발 서버에 다시 구현하지 않는다.
@@ -66,7 +70,8 @@ Node 요구사항은 package.json의 engines를 따른다. 패키지 버전은 l
 보류 발언 표시 및 관전 미리보기의 카드 비공개도 검사한다.
 브라우저의 배치/클릭/애니메이션 확인을 대체하는 검사는 아니다.
 프로젝트 루트의 `.venv/bin/python tests/run_web_integration.py`는 임시 fake 서버와 실제 웹 프록시로
-인간/AI-only 라운드, 다음 라운드, 재접속과 종료를 검증한다. 실제 모델은 호출하지 않는다.
+인간/AI-only 라운드, 과거 화면 고정 중 실제 진행, 이전 라운드 재접속과 종료 정리를 검증한다.
+실제 모델은 호출하지 않는다.
 
 ## 폴더
 
@@ -113,7 +118,7 @@ web/
       eventStream.js          SSE 연결/해제
       sseParser.js            분할 SSE 줄/프레임 파싱
       sessionStorage.js       한 탭의 재접속 정보
-      replayApi.js            아직 없는 기록 API의 연결 자리
+      replayApi.js            기록 목록/라운드 조회, 기존 gameApi 재사용
     adapters/toTableView.js   서버 관찰 → 동일한 화면 계약
     adapters/toCommandState.js 발언과 베팅 권한 분리
     adapters/publicEvents.js 사건 중복 제거/기록 변환

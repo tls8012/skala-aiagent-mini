@@ -237,6 +237,66 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(two['game_count'],1)
         self.assertFalse(two['mcp_connected'])
 
+    async def test_history_uses_owner_auth_and_links_only_public_table_events(self):
+        gid,headers,session=await self.create()
+        path=f'/games/{gid}/history'
+        self.assertEqual((await self.client.get(path)).status_code,401)
+        self.assertEqual((await self.client.get(path,headers={'Authorization':'Bearer wrong'})).status_code,403)
+        _,other,_=await self.create()
+        self.assertEqual((await self.client.get(path,headers=other)).status_code,403)
+        lobby=(await self.client.get(path,headers=headers)).json()
+        self.assertEqual(lobby['rounds'],[])
+        self.assertEqual((await self.client.get(path+'?round_id=1',headers=headers)).status_code,404)
+        for invalid in ['0','-1','abc','1.5']:
+            self.assertEqual((await self.client.get(path+'?round_id='+invalid,headers=headers)).status_code,422)
+        await self.client.post(f'/games/{gid}/rounds',headers=headers,json={'round_id':1})
+        await self.until(lambda:not session.runner._tasks)
+        await self.post_command(gid,headers,text='나도 간다')
+        await self.until(lambda:not session.runner._tasks)
+        result=(await self.client.get(path+'?round_id=1',headers=headers)).json()
+        by_id={frame['event_id']:frame for frame in result['frames']}
+        snapshot=session.snapshot()
+        for event in snapshot['recent_events']:
+            self.assertEqual(event['frame_id'],by_id[event['event_id']]['frame_id'])
+        for event in session.journal.since(0):
+            if 'event_id' in event:
+                self.assertEqual(event['frame_id'],by_id[event['event_id']]['frame_id'])
+        self.assertEqual(result['frames'][0]['snapshot']['perspective'],'player')
+        self.assertNotIn('human',result['frames'][0]['snapshot']['visible_cards'])
+        speech=next(f for f in result['frames'] if f['event'].get('text')=='나도 간다')
+        self.assertEqual(speech['snapshot']['human_display']['remaining_utterances'],4)
+        self.assertNotIn(session.access_token,json.dumps(result))
+        self.assertNotIn('observation',speech['snapshot'])
+        self.assertNotIn('frame_id',json.dumps(session.table.events))
+
+    async def test_history_outlives_sse_fifo_round_rotation_and_finished_game_until_delete(self):
+        gid,headers,session=await self.create(human=False)
+        session.table.config=replace(session.table.config,event_history_limit=2)
+        session.journal=EventJournal(2,0.01)
+        path=f'/games/{gid}/history'
+        await self.client.post(f'/games/{gid}/rounds',headers=headers,json={'round_id':1})
+        await self.until(lambda:session._task.done())
+        old=(await self.client.get(path+'?round_id=1',headers=headers)).json()
+        self.assertGreater(len(old['frames']),2)
+        self.assertEqual(old['frames'][0]['snapshot']['visible_cards'],{})
+        self.assertTrue(old['completed'])
+        self.assertEqual(len(session.snapshot()['recent_events']),2)
+        expired=await self.client.get(f'/games/{gid}/events?after=0',headers=headers)
+        self.assertEqual(expired.status_code,409)
+        await self.client.post(f'/games/{gid}/rounds',headers=headers,json={'round_id':2})
+        await self.until(lambda:session._task.done())
+        self.assertEqual((await self.client.get(path+'?round_id=1',headers=headers)).json(),old)
+        manifest=(await self.client.get(path,headers=headers)).json()
+        self.assertEqual([r['round_id'] for r in manifest['rounds']],[1,2])
+        self.assertEqual((await self.client.get(path+'?round_id=3',headers=headers)).status_code,404)
+        # 완료 상태도 세션을 닫기 전까지 조회할 수 있다.
+        session.table.finished=True
+        session._state='finished'
+        self.assertEqual((await self.client.get(path,headers=headers)).status_code,200)
+        await self.client.delete('/games/'+gid,headers=headers)
+        self.assertEqual((await self.client.get(path,headers=headers)).status_code,404)
+        self.assertEqual(session.table.replay_history()['rounds'],[])
+
 
 class JournalAndLifespanTests(unittest.IsolatedAsyncioTestCase):
     async def test_fanout_replay_heartbeat_and_gap(self):

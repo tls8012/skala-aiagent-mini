@@ -92,8 +92,17 @@ class GameSession:
                 backends[pid] = (PokerLLM(table, mcp, pid, PlayerLLM(table, mcp, pid))
                                  if backend == 'ollama' else ScriptedPokerLLM(table, None, pid, None))
         self.runner = RoundRunner(table, {pid: build_graph(llm) for pid, llm in backends.items()},
-                                  on_event=self.journal.append,
+                                  on_event=self._publish_event,
                                   interpreter=ScriptedSpeechInterpreter() if backend == 'fake' else None)
+
+    def _publish_event(self, event: dict):
+        self.journal.append(self.table.history.decorate(event))
+
+    def history(self, round_id: int | None = None) -> dict:
+        try:
+            return self.table.replay_history(round_id)
+        except KeyError:
+            raise ServiceError(404, 'round history not found') from None
 
     def snapshot(self) -> dict:
         table, r = self.table, self.table.round
@@ -120,7 +129,8 @@ class GameSession:
             'observation': observation,
             'deferred_speech': pending.model_dump() if pending else None,
             # 현재 라운드의 공개 기록만 보충한다. 개인 메모/자기 비공개 카드는 없다.
-            'recent_events': table.events_since(0)[-table.config.event_history_limit:] if r else [],
+            'recent_events': [table.history.decorate(event) for event in
+                              table.events_since(0)[-table.config.event_history_limit:]] if r else [],
             'is_silent': bool(r and self.human_id in r.conversation.silent),
             'can_start_next_round': self._state not in {'closed', 'failed'} and not running
                 and not table.finished and (r is None or r.phase == 'revealed'),
@@ -199,6 +209,7 @@ class GameSession:
                 self._task.cancel()
                 await asyncio.gather(self._task, return_exceptions=True)
             self._state = 'closed'
+            self.table.clear_replay_history()
             self.journal.append({'type': 'GameClosed'})
             self.journal.close()
 

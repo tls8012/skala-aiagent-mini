@@ -5,6 +5,7 @@ import { createSessionStorage } from '../services/sessionStorage.js';
 import { mergePublicEvents, toEventEntries } from '../adapters/publicEvents.js';
 import { toTableView } from '../adapters/toTableView.js';
 import { toCommandState } from '../adapters/toCommandState.js';
+import { createReplayApi } from '../services/replayApi.js';
 
 /** HTTP 결과와 SSE를 조립한다. 토큰/재전송 본문은 이 클로저 밖으로 내보내지 않는다. */
 export function useGameSession({ api = defaultApi, subscribe = subscribeGameEvents, storage = createSessionStorage() } = {}) {
@@ -12,6 +13,7 @@ export function useGameSession({ api = defaultApi, subscribe = subscribeGameEven
   const uncertain = ref(false), restoring = ref(false);
   const connection = reactive({ status: 'idle', error: null });
   const health = reactive({ status: 'checking', backend: null, model: null, error: null });
+  const replayApi = createReplayApi(api);
   let context = null, stream = null, generation = 0, mutationEpoch = 0, disposed = false;
   let refreshFlight = null, refreshScheduled = false, seenSequence = 0, retryRecord = null, lastRefreshError = null;
   const current = g => !disposed && g === generation && context !== null;
@@ -223,6 +225,22 @@ export function useGameSession({ api = defaultApi, subscribe = subscribeGameEven
   }
   function closeGame() { if (context) return perform({ type: 'close' }); }
   function retryLastCommand() { if (retryRecord) return perform(retryRecord); }
+  async function readHistory(roundId) {
+    if (!context || disposed) throw new defaultApi.ApiError('테이블이 닫혔습니다.', 404);
+    const g = generation, requestContext = { ...context };
+    try {
+      const result = roundId == null ? await replayApi.listReplayRounds(requestContext)
+        : await replayApi.getReplayFrames(requestContext, roundId);
+      if (!current(g)) throw new Error('테이블이 바뀌었습니다.');
+      return result;
+    } catch (failure) {
+      if (current(g)) {
+        if ([401, 403].includes(failure.status) || failure.status === 404 && roundId == null) markClosed('기록을 조회할 테이블이 없습니다.');
+        else if (failure.status === 404) await refresh(); // 라운드 없음과 테이블 삭제를 구분한다.
+      }
+      throw failure;
+    }
+  }
   function dispose() { disposed = true; generation += 1; detach(); }
   if (getCurrentScope()) onScopeDispose(dispose);
   return { liveState, view, entries, commands, sessionSummary, connection, health, error, pending, restoring,
@@ -230,5 +248,6 @@ export function useGameSession({ api = defaultApi, subscribe = subscribeGameEven
     deferredSpeech: computed(() => liveState.value?.deferred_speech || null),
     initialize, reconnect, createGame, refresh, startRound, speak: payload => command('speak', payload),
     silent: () => command('silent'), bet: bet => command('bet', { bet }), releaseSpeech,
-    closeGame, retryLastCommand, dispose };
+    closeGame, retryLastCommand, dispose,
+    listReplayRounds: () => readHistory(), getReplayFrames: roundId => readHistory(roundId) };
 }

@@ -3,6 +3,7 @@ defineProps({
   health: { type: Object, default: () => ({}) }, error: { type: String, default: null },
   busy: { type: Boolean, default: false }, restoring: { type: Boolean, default: false },
   canRetry: { type: Boolean, default: false },
+  readOnly: { type: Boolean, default: false },
 });
 defineEmits(['reconnect', 'retry-command']);
 </script>
@@ -18,7 +19,7 @@ defineEmits(['reconnect', 'retry-command']);
         <template v-else>모델: {{ health.model || 'Ollama' }}</template>
       </p>
       <div>
-        <button v-if="canRetry" type="button" :disabled="busy || restoring" @click="$emit('retry-command')">같은 요청 다시 확인</button>
+        <button v-if="canRetry" type="button" :disabled="busy || restoring || readOnly" @click="$emit('retry-command')">같은 요청 다시 확인</button>
         <button type="button" :disabled="busy || restoring" @click="$emit('reconnect')">연결 다시 확인</button>
       </div>
     </div>

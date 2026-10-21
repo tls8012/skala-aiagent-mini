@@ -127,6 +127,10 @@ def create_app(config: GameConfig | None = None, backend: str | None = None, mcp
     async def get_game(game: GameSession = Depends(session)):
         return game.snapshot()
 
+    @app.get('/games/{game_id}/history', summary='현재 게임의 라운드 목록 또는 사건 직후 화면')
+    async def history(round_id: int | None = Query(default=None, ge=1), game: GameSession = Depends(session)):
+        return game.history(round_id)
+
     @app.post('/games/{game_id}/rounds', status_code=202, summary='라운드 시작 또는 같은 시작 요청 재확인')
     async def start_round(body: StartRoundRequest, game: GameSession = Depends(session)):
         return await game.start_round(body.round_id)

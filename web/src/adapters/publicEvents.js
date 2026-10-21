@@ -31,6 +31,6 @@ export function toEventEntries(events, humanId) {
         RunFailed: '라운드 실행 오류', MemoryPublishFailed: '경험 저장에 실패했습니다.', GameClosed: '테이블을 종료했습니다.' })[event.type];
     return { id: eventKey(event), roundId: event.round_id, eventId: event.event_id ?? null,
       sequence: event.sequence ?? null, type: event.type, playerId: event.player_id ?? null,
-      playerLabel: event.player_id === humanId ? '나' : event.player_id || '테이블', text: text || event.type, frameId: null };
+      playerLabel: event.player_id === humanId ? '나' : event.player_id || '테이블', text: text || event.type, frameId: event.frame_id || null };
   });
 }

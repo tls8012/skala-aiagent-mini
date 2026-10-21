@@ -11,6 +11,7 @@ from .config import GameConfig
 from .models import (AgentDecision, Bet, CommandResult, Observation, Player,
                      PlayerCommand, SpeechInterpretation, safe_id)
 from .round import Round
+from .replay_history import ReplayHistory
 
 
 class Table:
@@ -34,6 +35,7 @@ class Table:
         self.events: list[dict] = []
         self.game_winner: str | None = None
         self.finished = False
+        self.history = ReplayHistory(self.game_id, human_id)
         self._rng = random.Random(self.config.seed)
         self._lock = threading.RLock()
         self._decisions: dict = {}
@@ -42,11 +44,13 @@ class Table:
         if self.archive_dir.exists() and any(self.archive_dir.iterdir()):
             raise ValueError('game_id already has records; use a new ID (resume is not implemented)')
 
-    def _emit(self, kind: str, **data) -> dict:
+    def _emit(self, kind: str, *, _capture: bool = True, **data) -> dict:
         self.event_id += 1
         event = {'event_id': self.event_id, 'round_id': self.round.number,
                  'type': kind, **data}
         self.events.append(event)
+        if _capture:
+            self.history.capture(self, event)
         return event
 
     def start_round(self, cards: dict[str, Card] | None = None) -> Round:
@@ -189,7 +193,8 @@ class Table:
     def _publish_speech(self, pid: str, cmd: PlayerCommand,
                         interpretation: SpeechInterpretation | None = None):
         extra = {'interpretation': interpretation.model_dump()} if interpretation else {}
-        event = self._emit('Speech', player_id=pid, channel=cmd.channel,
+        # Speech만 사건 ID를 먼저 만든다. 횟수/말풍선 반영 전 프레임을 저장하지 않는다.
+        event = self._emit('Speech', _capture=False, player_id=pid, channel=cmd.channel,
                            text=cmd.text, target=cmd.target, request_id=cmd.request_id, **extra)
         c = self.round.conversation
         c.add(pid, cmd, event['event_id'], interpretation)
@@ -199,6 +204,7 @@ class Table:
                 del c.chat_replies[cmd.reply_to]
                 c.chat_senders.pop(cmd.reply_to, None)
                 c.mixed_requests.discard(cmd.reply_to)
+        self.history.capture(self, event)
 
     def release_deferred(self, pid: str, basis_event: int) -> CommandResult:
         """자동 노출하지 않는다. 호출자가 최신 상황에서 재확인한 뒤 명시적으로 해제."""
@@ -299,6 +305,14 @@ class Table:
                 dialogue_quiet=c.quiet(r.order), messages=c.context(),
                 folded_players=[other for other in r.order if other in r.betting.folded],
                 failed_agents=[p.id for p in self.players.values() if p.failed], result=r.result).model_copy(deep=True)
+
+    def replay_history(self, round_id: int | None = None) -> dict:
+        with self._lock:
+            return self.history.manifest() if round_id is None else self.history.get_round(round_id)
+
+    def clear_replay_history(self):
+        with self._lock:
+            self.history.clear()
 
     def _archive(self):
         r = self.round

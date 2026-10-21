@@ -42,6 +42,8 @@ export function createGameApi({ fetchImpl = globalThis.fetch, baseUrl = '', time
     checkHealth: () => request('/health'),
     createGame: body => request('/games', { method: 'POST', body }),
     getGame: context => request(gamePath(context), { context }),
+    listReplayRounds: context => request(gamePath(context, '/history'), { context }),
+    getReplayFrames: (context, roundId) => request(`${gamePath(context, '/history')}?round_id=${encodeURIComponent(roundId)}`, { context }),
     startRound: (context, body) => request(gamePath(context, '/rounds'), { method: 'POST', context, body }),
     submitCommand: (context, body) => request(gamePath(context, '/commands'), { method: 'POST', context, body }),
     releaseSpeech: (context, body) => request(gamePath(context, '/commands/release'), { method: 'POST', context, body }),
@@ -52,6 +54,8 @@ const api = createGameApi();
 export const checkHealth = (...args) => api.checkHealth(...args);
 export const createGame = (...args) => api.createGame(...args);
 export const getGame = (...args) => api.getGame(...args);
+export const listReplayRounds = (...args) => api.listReplayRounds(...args);
+export const getReplayFrames = (...args) => api.getReplayFrames(...args);
 export const startRound = (...args) => api.startRound(...args);
 export const submitCommand = (...args) => api.submitCommand(...args);
 export const releaseSpeech = (...args) => api.releaseSpeech(...args);

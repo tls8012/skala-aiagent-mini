@@ -54,6 +54,20 @@ try {
     assert.ok(match, `button not found: ${label}`);
     return /\sdisabled(?:[\s=>]|$)/.test(match[1]);
   };
+  const Replay = await load('history/ReplayControls');
+  const replayProps = { mode: 'replay', selectedRoundId: 1, selectedFrameId: 'f1', position: 0, frameCount: 2,
+    rounds: [{ round_id: 1, frame_count: 2, completed: true }] };
+  const controls = await render(Replay, replayProps);
+  assert.equal(disabledButton(controls, '처음'), true);
+  assert.equal(disabledButton(controls, '이전'), true);
+  assert.equal(disabledButton(controls, '다음'), false);
+  assert.equal(disabledButton(controls, '현재로 돌아가기'), false);
+  assert.equal(disabledButton(await render(Replay, { ...replayProps, loading: true }), '다음'), true);
+  const selectedLog = await render(Log, { entries: [{ id: 'e1', eventId: 7, roundId: 1, frameId: 'f1', text }],
+    selectedFrameId: 'f1', replayAvailable: true });
+  assert.match(selectedLog, /aria-current="step"/); assert.match(selectedLog, /이 시점 보기/);
+  const Notice = await load('SessionNotice');
+  assert.equal(disabledButton(await render(Notice, { canRetry: true, readOnly: true }), '같은 요청 다시 확인'), true);
   assert.match(await render(Setup, { busy: true }), /<fieldset[^>]* disabled/);
   assert.match(await render(Setup, { error: '<script>bad</script>' }), /&lt;script&gt;/);
   const summary = { gameId: 'test', status: 'ready', roundId: 1 };

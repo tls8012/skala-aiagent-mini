@@ -29,7 +29,7 @@ function expandSpeech(eventId) {
   eventLog.value?.focusEvent(eventId);
 }
 
-defineEmits(['start-round', 'close-game', 'speak', 'silent', 'release-speech', 'bet', 'seek-frame', 'step-frame', 'seek-position', 'select-round', 'return-live']);
+defineEmits(['start-round', 'close-game', 'speak', 'silent', 'release-speech', 'bet', 'seek-frame', 'step-frame', 'seek-position', 'select-round', 'return-live', 'retry-replay']);
 </script>
 
 <template>
@@ -39,19 +39,28 @@ defineEmits(['start-round', 'close-game', 'speak', 'silent', 'release-speech', '
       <slot name="setup" />
     </GameToolbar>
     <slot name="notice" />
+    <div v-if="replay.mode === 'replay'" class="game-screen__replay-banner" role="status">
+      <strong>{{ replay.selectedEventId == null ? '과거 기록 불러오는 중' : `과거 기록 · 라운드 ${replay.selectedRoundId} · 사건 #${replay.selectedEventId}` }}</strong>
+      <span>입력 중지 · 실제 게임은 계속 진행됩니다. {{ replay.unreadCount ? `현재에 새 사건 ${replay.unreadCount}개` : '' }}</span>
+    </div>
     <div class="game-screen__body">
       <PokerTable :ai-seats="view.aiSeats || []" :human-seat="view.humanSeat || null" :summary="view.summary || {}" :read-only="effectiveReadOnly" :motion-enabled="replay.mode !== 'replay'" @expand-speech="expandSpeech" />
-      <EventLog ref="eventLog" :entries="entries" :selected-event-id="expandedEventId" :replay-available="false" />
+      <EventLog ref="eventLog" :entries="entries" :selected-event-id="replay.mode === 'replay' ? replay.selectedEventId : expandedEventId"
+        :selected-frame-id="replay.selectedFrameId" :replay-available="Boolean(replay.available)" @seek-frame="$emit('seek-frame', $event)" />
     </div>
     <HumanControls :participation="participation" :commands="commands" :remaining-utterances="remainingUtterances" :read-only="effectiveReadOnly" :deferred-speech="deferredSpeech"
       @speak="$emit('speak', $event)" @silent="$emit('silent')" @release-speech="$emit('release-speech')" @bet="$emit('bet', $event)" />
-    <ReplayControls :rounds="[]" :position="0" :frame-count="0" :loading="false" />
-    <!-- 정확한 과거 프레임은 백엔드 history API와 useReplay 구현 이후 연결한다. -->
+    <ReplayControls :rounds="replay.rounds || []" :mode="replay.mode || 'live'" :selected-round-id="replay.selectedRoundId"
+      :selected-frame-id="replay.selectedFrameId" :position="replay.position || 0" :frame-count="replay.frameCount || 0" :loading="Boolean(replay.loading)" :error="replay.error || null"
+      @select-round="$emit('select-round', $event)" @step-frame="$emit('step-frame', $event)" @seek-position="$emit('seek-position', $event)"
+      @return-live="$emit('return-live')" @retry="$emit('retry-replay')" />
   </main>
 </template>
 
 <style scoped>
 .game-screen { display: grid; gap: 16px; padding: 24px; }
 .game-screen__body { display: grid; grid-template-columns: minmax(900px, 1fr) 320px; gap: 24px; }
+.game-screen__replay-banner { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; border: 1px solid #e6d6b5; border-radius: 12px; background: #faf3e6; color: #9a7c45; font-size: 12px; }
+.game-screen__replay-banner > span { font-size: 11px; }
 /* TODO: 실제 시각 디자인. */
 </style>

@@ -7,9 +7,9 @@ Vue SFC 폴더/컴포넌트/데이터 계약을 바탕으로 참가자와 테이
 App은 기본으로 LiveGame의 실제 서버 세션을 표시한다. `?preview=1`에서는 GamePreview의 예시 화면을 표시한다.
 게임 설정/상단 상태·명령 버튼과 인간 발언/침묵/보류 확인/베팅 입력 컴포넌트도 구현했다.
 실제 게임 상태 변환, HTTP/SSE와 인간 명령 연결, 재접속/중복 제거/접수 재확인을 구현했다.
-정확한 사건별 과거 상태 저장과 리플레이는 아직 구현하지 않았다.
+현재 게임의 사건 직후 상태 저장, 인증된 기록 조회와 과거 화면 탐색까지 구현했다.
 미리보기 전용 상태 조립은 preview/useTablePreview.js에 분리하고 PreviewTools에서 입력 상태를 바꿔 본다.
-replayApi/useReplay의 TODO 함수는 호출 시 명시적으로 오류를 낸다. 가짜 과거 프레임을 반환하지 않는다.
+replayApi/useReplay는 서버가 저장한 실제 프레임만 사용하며 조회 실패 시 재시도/현재 복귀를 제공한다.
 
 기준 해상도는 1920×1080, 최소 작업 폭은 1440px와 높이 900px로 잡는다.
 모바일 레이아웃은 이번 설계 범위에서 제외한다. 색감/테마는 아직 확정하지 않았다.
@@ -118,7 +118,7 @@ GameScreen은 EventLog의 해당 사건을 강조하고 스크롤/포커스를 �
 | HumanControls | participation, commands, remainingUtterances, deferredSpeech, readOnly | speak({text}), silent, release-speech, bet(bet) |
 | BettingControls | allowedBets, raiseOptions, disabled | bet({action,raise_size?}) |
 | EventLog | entries, selectedEventId, selectedFrameId, replayAvailable | focusEvent(eventId)로 기록 포커스; seek-frame(frameId) |
-| ReplayControls | rounds, selectedRoundId, selectedFrameId, position, frameCount, loading, error | select-round(roundId), step-frame(first/previous/next/last), seek-position(index), return-live |
+| ReplayControls | rounds, mode, selectedRoundId, selectedFrameId, position, frameCount, loading, error | select-round(roundId), step-frame(first/previous/next/last), seek-position(index), return-live, retry |
 
 GameScreen은 사용자 의도를 상위 상태 조립 계층에 전달한다. expand-speech는 기록의 해당
 발언을 펼치거나 포커스하는 화면 동작이다. 게임 명령을 새로 만들지 않는다.
@@ -137,17 +137,17 @@ GameToolbar는 SessionSummary/ConnectionState(contracts.js)의 상태를 표시�
 ```text
 App / GameScreen
   ├─ useGameSession → gameApi / eventStream → 같은 출처의 웹 프록시
-  ├─ useReplay → replayApi → 기록 조회(백엔드 선행 작업 필요)
+  ├─ useReplay → useGameSession의 토큰 비공개 조회 → replayApi → /games/{id}/history
   └─ toTableView → PokerTable / PlayerSeat 등 동일한 표시 컴포넌트
 ```
 
 - useGameSession: liveState, 연결 상태, 요청 처리 상태, 게임 생성/시작/명령/종료.
-- useReplay: 완료 라운드 목록, 선택 프레임, 이전/다음/처음/마지막, 현재로 복귀.
+- useReplay: 현재 게임의 진행/완료 라운드 목록, 선택 프레임, 이전/다음/처음/마지막, 현재로 복귀.
 - toTableView: 서버의 snake_case 상태와 공개 사건을 화면용 TableView로 바꾸는 순수 변환 위치.
 - gameApi: 일반 요청. 인증 토큰은 이 계층과 composable에서만 사용한다.
 - eventStream: fetch 기반 SSE. Authorization/Last-Event-ID, 분할 수신, named event,
   heartbeat, 재연결과 ResyncRequired를 처리한다. close는 구독만 닫고 게임을 삭제하지 않는다.
-- replayApi: 조회 전용. 현재 서버에는 정확한 사건별 과거 상태 API가 없다.
+- replayApi: /history 목록/라운드 조회 전용. 기존 gameApi의 인증/요청 처리를 재사용한다.
 
 LiveGame은 초기 서버 상태 점검과 저장된 게임 재접속만 수행한다. 게임 생성/라운드 시작은 버튼으로 요청한다.
 컴포넌트의 로컬 상태는 입력 초안/기록 펼침 등 화면 동작으로 한정한다.
@@ -204,53 +204,200 @@ SSE sequence/stream_cursor는 전송 복구에, event_id는 명령 basis_event�
 유지하지만 새로고침 후 이전 모든 라운드의 상태/기록까지 복구하지는 않는다.
 구현 함수와 실행/검증 순서는 CONNECTION_GUIDE.md에 정리했다.
 
-## 7. 리플레이: 필수 요구와 아직 없는 백엔드
+## 7. 현재 게임의 사건 선택과 과거 화면 탐색 — 구현 명세
 
-목표는 느린 로컬 실행 결과를 다시 돌리지 않고 라운드/게임 전체의 이전 상태를 탐색하는 것이다.
-MVP 조작은 라운드 선택, 처음/이전/다음/마지막, 슬라이더, 기록 클릭, 현재로 돌아가기다.
-자동 재생 속도나 동영상 저장은 이번 범위가 아니다.
+이 절에 따라 사건별 스냅샷 저장/조회와 과거 테이블 표시를 구현했다.
+말풍선의 원문 포커스와 기록 클릭에 의한 시점 이동은 별도 동작으로 유지한다.
 
-실시간 원본과 표시 커서는 별개다.
+### 7.1 범위와 보관 기간
+
+- 대상은 현재 game_id의 한 게임이다. 그 게임의 첫 라운드부터 현재까지 탐색한다.
+  이전 game_id 목록, 게임 보관함, 내보내기, 자동 재생은 이번 범위에서 제외한다.
+- 진행 중인 라운드, 완료된 라운드, 우승이 정해진 게임 모두 확정된 사건까지 조회할 수 있다.
+- 서버는 해당 테이블의 메모리에 기록을 유지한다. 새 DB/디스크 저장은 추가하지 않는다.
+  기존 RAG 경험 기록/라운드 JSON을 화면 복구 자료로 사용하지 않는다.
+- 게임 종료(finished)는 기록을 지우지 않는다. 명시적인 테이블 종료(DELETE), 서버 재시작,
+  서버 프로세스 종료로 기록이 사라진다. 새 게임은 별도 game_id로 시작한다.
+- 서버에 테이블이 남아 있고 같은 토큰으로 재접속하면 새로고침 후에도 그 게임의
+  라운드 목록과 프레임을 다시 조회할 수 있다. 브라우저는 초기에는 현재 화면을 보여준다.
+- SSE/recent_events의 event_history_limit과 리플레이 보관은 별개다. SSE 버퍼가 밀려나거나
+  Table.events가 다음 라운드에서 비워져도 과거 프레임은 지우지 않는다.
+- MVP는 현재 게임의 전체 프레임을 유지한다. 프레임에 전체 대화/프레임 목록을 중첩하지 않고
+  당시 표시용 최소 정보만 복사한다. 보존 상한을 나중에 추가하면 삭제 범위를 명시해야 하며
+  기존 SSE FIFO 한도를 재사용해 조용히 오래된 장면을 버리지 않는다.
+
+### 7.2 사용자 동작과 화면 의미
+
+1. 우측 기록의 발언 또는 게임 사건을 클릭한다. 프레임이 있는 항목만 시점 이동할 수 있다.
+2. 해당 사건의 처리가 끝난 직후의 테이블로 화면을 바꾼다. 클릭한 발언이 말풍선에 보이고,
+   카드/칩/판돈/차례/폴드/최근 행동도 그 시점의 값이어야 한다.
+3. '과거 기록 · 라운드 N · 사건 #M' 표시와 선택 기록 강조를 유지한다.
+4. 라운드 선택, 처음/이전/다음/마지막, 선택 라운드 안의 슬라이더로 이동할 수 있다.
+   슬라이더는 프레임 배열 위치를 사용하고 event_id를 연속 인덱스로 가정하지 않는다.
+5. '현재로 돌아가기'를 누르면 그동안 갱신된 최신 테이블로 돌아간다.
+
+게임 엔진은 되감거나 일시정지하지 않는다. 과거를 보는 동안 AI 판단/베팅/공개와 SSE 수신은
+계속 진행한다. 새 사건 때문에 선택한 프레임이나 라운드를 자동으로 바꾸지 않고,
+'현재에 새 사건 N개' 같은 안내만 갱신한다. 최신 프레임에 도달해도 명시적으로 복귀하기
+전에는 replay 모드를 유지한다.
+
+과거를 보는 동안 생성/발언/침묵 선언/보류 발언 공개/베팅/라운드 시작/테이블 종료와
+접수 불명확 요청의 재전송 등 모든 게임 변경 명령을 막는다. 연결 재확인과 기록 조회는 가능하다.
+진입 전에 이미 전송한 명령을 취소하거나 다시 보내지는 않고 그 결과는 liveState에 반영한다.
+컴포넌트 disabled뿐 아니라 LiveGame의 명령 전달 경계에서도 replay 모드를 검사한다.
+
+상단의 서버 연결/실제 게임 진행 상태는 최신 정보를 유지하고 '현재 상태'임을 구분한다.
+테이블과 과거 발언 잔여 횟수 등 선택 장면의 표시는 프레임에서 가져온다. 입력 초안/접수 결과는
+실시간 맥락에 남겨 두며 과거 round_id/event_id로 명령을 구성하지 않는다.
+
+### 7.3 프레임을 저장하는 시점
+
+프레임은 서버의 Table에서 해당 상태 변경이 끝난 지점에, 기존 동기 처리/락 안에서 복사한다.
+runner._dispatch/on_event나 SSE 수신 후 GET /games/{id}로 저장하지 않는다. 그 시점에는
+이미 다음 사건까지 진행되었을 수 있다.
+
+| 사건 | 프레임에 반영된 상태 |
+|---|---|
+| RoundStarted | 카드 배분/참가비 차감/현재 라운드 초기화가 끝난 상태 |
+| Speech | 발언 본문/횟수/최근 발언자/잡담 응답 상태 반영 후 |
+| PlayerSilent | 발언 없음 상태 반영 후 |
+| BetPlaced | 해당 베팅/폴드/기여금/다음 차례 반영 후, 후속 자동 행동이나 정산 전 |
+| AgentFailed | 오류 표시와 보류 정리 후, 후속 자동 체크/폴드 전 |
+| RoundEnded | 판돈 지급/이월/탈락/우승/공개 카드와 종료 단계 반영 후 |
+
+_publish_speech는 _emit('Speech', _capture=False)로 사건 ID를 먼저 만든다.
+Conversation.add와 잡담 응답 상태를 반영한 뒤 capture를 호출한다. 다른 사건은 _emit에서
+공통 capture를 호출한다. 발언 횟수/말풍선을 반영하기 전에 저장하지 않는다.
+한 명령이 BetPlaced → 자동 BetPlaced → RoundEnded를 만들면 각 중간 상태를 따로 저장한다.
+
+거절/중복 요청/아직 공개하지 않은 보류 발언, heartbeat, 모델 추론/메모 저장에는 프레임을
+추가하지 않는다. RoundReady/MemoryPublishFailed/RunFailed/GameClosed 같은 서비스 알림은
+기록으로 남길 수 있지만 이번 MVP에서는 시점 이동 대상에 넣지 않는다.
+공개 이후 서비스 회고가 끝났는지는 실시간 상단 상태로 확인한다.
+
+프레임은 생성 시 깊은 복사하고 조회 시에도 내부 객체를 노출하지 않는다. 이후의 라운드,
+메모 수정, 게임 결과가 저장된 과거 스냅샷을 변경하면 안 된다.
+
+### 7.4 저장 계약과 정보 범위
+
+서버 전송 계약은 다음과 같으며 contracts.js의 ReplayFrame도 같은 필드를 사용한다.
+화면용 TableView는 프런트에서 계산한다.
 
 ```text
-liveState                       실제 서버의 현재 상태
-frames + selectedFrameId         완료 라운드의 과거 관찰
-mode                            live 또는 replay
-TableView                       선택한 모드의 읽기 전용 표시 데이터
+ReplayFrame
+  frame_id        서버가 부여하는 불투명한 게임 내 고유 ID
+  game_id
+  round_id
+  event_id        해당 Table 사건 번호
+  event           해당 공개 사건 원문
+  snapshot        그 사건 직후의 허용된 화면 상태
 ```
 
-프레임 이동은 엔진 상태/메모를 바꾸거나 LLM을 다시 호출하지 않는다.
-리플레이 중에는 입력, 베팅, 다음 라운드 시작을 비활성화한다. 명시적으로 현재로 복귀한 후
-다음 라운드를 시작한다. 라운드 종료 검토 구간과 게임 종료 후에 탐색할 수 있게 한다.
-한 프레임에서 카드/칩/판돈/폴드/차례/말풍선/대화의 시점은 서로 같아야 한다.
+snapshot에는 당시 game_id/round_id/event_id/phase, 생성 순서의 players, human_id,
+폴드 참가자, pot/current_bet/betting_turn, 공개 가능한 visible_cards, 당시 result/우승 정보,
+관찰 시점의 perspective(player 또는 spectator), 인간의 표시용 참여 상태/남은 발언 횟수를 둔다.
+각 참가자의 최근 확정 발언과 최근 베팅 사건은 display_events에 보관한다. 전체 대화 대신
+표시에 필요한 최신 발언/베팅만 유지하고 event_id 순서로 정렬한다.
 
-현재 서버의 SSE는 공개 사건이고 GET /games/{id}는 현재 상태다. SSE를 받은 뒤 현재 상태를
-조회해 저장하면 여러 사건이 이미 진행된 상태일 수 있어 정확한 과거 화면을 보장할 수 없다.
-특히 관찰 카드와 당시 칩/발언 상태를 기존 공개 사건만으로 모두 복원할 수 있다고 가정하면 안 된다.
+- 관점은 생성 시 정해진 인간/AI-only 관전과 그 시점의 참가 상태에서 서버가 결정한다.
+  클라이언트가 다른 에이전트나 전지적 관점을 지정하는 파라미터는 받지 않는다.
+- 카드 정보는 기존 observe/현재 상태 API와 같은 공개 범위만 저장한다. 숨긴 자기 카드,
+  폴드 카드의 앞면, 개인 메모/추론/시스템 프롬프트/토큰은 프레임에 넣지 않는다.
+- AI-only 관전은 공개 전 앞면이 없다. 인간 참가 중에는 당시 허용된 상대 카드만 들어간다.
+  종료 프레임에서도 실제 공개 대상 카드만 넣는다.
+- 공개 후 카드를 알아도 이전 프레임을 수정하거나 liveState/결과 카드로 보충하지 않는다.
+- sequence/stream_cursor는 실시간 재연결 값이다. 프레임 ID나 탐색 위치로 사용하지 않으며
+  사건 확정 시 아직 없는 sequence를 저장하기 위해 프레임 저장을 늦추지 않는다.
+- Vue 컴포넌트/CSS 색상/배치 코드를 서버에 옮기지 않는다. perspective와 display_events를
+  읽는 리플레이 변환을 기존 toTableView에 연결해 같은 표시 컴포넌트를 사용한다.
+  생략된 전체 Observation을 가짜 빈 observation 객체로 대체해 카드 권한을 우회하지 않는다.
 
-따라서 후속 백엔드 작업으로 다음이 필요하다.
+agents/replay_history.py의 ReplayHistory 객체가 프레임, 라운드 인덱스, event_id→frame_id
+인덱스와 최근 표시 사건을 관리하도록 한다. Table은 저장 시점과 허용 상태 제공을 담당하고,
+GameSession은 인증된 테이블의 기록 조회만 중계한다. RAG/MCP 저장과 분리한다.
 
-1. 사건 확정 시점에 해당 인간/관전자의 허용된 관찰과 최근 말풍선 상태를 저장.
-   runner의 지연된 전달 callback에서 현재 상태를 찍는 방식으로 대체하지 않는다.
-2. 완료 라운드별 목록과 사건별 불변 스냅샷 조회.
-   제안 경로: GET /games/{id}/history, GET /games/{id}/history?round_id=1.
-   **이 경로는 현재 구현되어 있지 않다.**
-3. 프레임 계약: frame_id, round_id, event_id, sequence(선택), event, snapshot.
-   UI에서는 snapshot을 같은 TableView로 변환하고 프레임 ID로 탐색한다.
-4. 인간 관찰 기록은 공개 RAG 경험과 구분하여 저장하고 게임 토큰으로 접근을 제한.
-   숨겨진 자기 카드/개인 메모/프롬프트를 기록에 추가하지 않는다.
-5. 페이지를 나중에 열어도 완료 기록을 조회할 수 있도록 저장/보존 범위를 확정.
-   현재 SSE 버퍼나 브라우저 수신 기록만으로 이 요구가 완성되었다고 표시하지 않는다.
+### 7.5 조회와 기존 SSE 연결
 
-현재 replayApi/useReplay는 이 선행 작업을 드러내는 스텁이다.
-백엔드 구현 전에는 리플레이를 사용 가능하다고 표시하거나 가짜 과거 상태를 생성하지 않는다.
+구현한 API는 아래 두 조회 형태로 한정한다.
+
+| 요청 | 응답 계약 |
+|---|---|
+| GET /games/{id}/history | game_id, 라운드 목록(round_id/completed/frame_count/first_frame_id/last_frame_id), latest_frame_id |
+| GET /games/{id}/history?round_id=N | game_id, round_id, completed, 해당 라운드의 latest_frame_id, event_id 순서의 frames 배열 |
+
+진행 중인 라운드도 반환한다. 조회 중 새 사건이 생겨도 한 응답은 복사 시점까지의 일관된
+프레임 목록이다. 캐시 갱신 시 frame_id로 합치고 기존 프레임 내용은 변경하지 않는다.
+라운드 단위 조회로 충분하므로 MVP에는 별도 프레임 상세 API나 페이지네이션을 추가하지 않는다.
+기록 없는 라운드는 404, 없어진 테이블/유효하지 않은 토큰은 기존 인증/조회 규칙을 따른다.
+테이블이 아직 라운드를 시작하지 않았다면 라운드 목록은 빈 배열이다.
+
+기존 Bearer 세션 검증을 재사용하고 같은 game_id의 소유자에게만 해당 관점의 프레임을 반환한다.
+웹 프록시는 기존 /games 일반 중계를 재사용한다. SSE 연결/재시도 규약은 바꾸지 않는다.
+
+GameSession이 공개 사건을 SSE journal 또는 recent_events 응답으로 복사할 때 저장된
+frame_id를 붙인다. 원본 Table.events/라운드 아카이브에 frame_id를 끼워 넣어 RAG/MCP 기록
+계약을 바꾸지 않는다. 저장과 frame_id 등록은 runner가 사건을 전달하기 전에 끝나 있어야 한다.
+publicEvents.toEventEntries는 이 링크를 EventEntry.frameId로 전달한다.
+
+재접속 시 /history로 현재 게임의 라운드를 찾고 필요한 라운드를 조회한다. 기존 live 기록
+버퍼에서 빠진 라운드도 라운드 선택 후 해당 프레임의 event 목록으로 읽을 수 있어야 한다.
+프레임이 없는 알림/예전 서버의 사건은 클릭을 비활성화하고 현재 상태로 대체하지 않는다.
+
+### 7.6 프런트 상태와 파일별 연결
+
+```text
+useGameSession.liveState       최신 서버 상태, SSE/명령/접수 결과의 기준
+useReplay                     mode, 라운드 목록, 프레임 캐시, selectedFrameId
+live TableView                liveState + 실시간 공개 사건으로 계산
+replay TableView              선택 snapshot + 그 snapshot.display_events로 계산
+LiveGame.displayView          mode에 따라 위 둘 중 하나를 전달
+```
+
+- replayApi.js: 토큰을 가진 통신 계층에서 listReplayRounds/getReplayFrames 구현.
+- useReplay.js: 현재 game_id의 라운드/프레임 캐시, selectRound/seekFrame/이전·다음/복귀 관리.
+  선택 사건이 캐시에 없으면 그 round_id를 조회한 뒤 정확한 frame_id로 이동한다.
+- LiveGame.vue: 실제 상태와 표시 상태를 분리하고 모든 게임 변경 이벤트를 replay에서 차단한다.
+  새로운 game_id/테이블 삭제/접속 상실 확정 시 선택·캐시·진행 중 조회를 정리한다.
+- GameScreen/ReplayControls: 읽기 전용·선택 위치·과거 표시와 탐색 의도만 전달한다.
+  재생 중 눈 모션은 멈춘다. 현재로 돌아가면 최신 화면과 입력 권한을 다시 사용한다.
+- EventLog: frameId가 있는 기록의 행/버튼 클릭으로 seek-frame을 전달한다. 선택 표시를
+  유지하며 선택 라운드의 뒤쪽 기록도 탐색용으로 볼 수 있다. 뒤쪽 발언을 선택 장면의
+  말풍선에 미리 반영하지 않는다.
+- SpeechBubble의 '기록에서 전체 보기': 기존 원문 포커스 동작을 유지한다. 시점 이동은
+  EventLog의 기록 선택으로 구분해 불필요하게 보기 모드를 바꾸지 않는다.
+- toTableView/contracts: wire snapshot/화면 계약을 정리하고 생성 순서의 좌석/색을 재사용한다.
+  나중 상태로 카드/칩/말풍선을 보충하지 않는다.
+
+선택 요청 A 뒤에 B를 눌렀다면 늦게 도착한 A 응답이 B를 덮어쓰지 못하게 한다.
+다른 라운드를 읽는 동안에는 이전 표시를 유지하고 '기록 불러오는 중'과 명령 차단을 적용한다.
+실패 시 임의의 프레임을 표시하지 않고 재조회/현재 복귀를 제공한다. SSE 단절은 저장된
+과거 화면을 지우지 않지만 테이블 삭제/서버 재시작으로 404가 확인되면 캐시를 정리한다.
+리플레이 중 프레임 조회/선택/복귀는 어떤 LLM/MCP/게임 변경 요청도 발생시키지 않는다.
+
+### 7.7 구현 순서와 완료 조건
+
+1. ReplayHistory와 Table의 정확한 저장 지점 구현. 공개 정보/깊은 복사를 먼저 검증한다.
+2. 인증된 /history 조회와 SSE/recent_events의 frame_id 연결. 기존 실시간 흐름을 회귀 검사한다.
+3. replayApi/useReplay와 LiveGame의 표시 분리 및 명령 차단 구현.
+4. EventLog 클릭과 ReplayControls를 기존 테이블/캐릭터에 연결한다.
+
+완료 검증에는 다음을 포함한다.
+
+- Speech를 클릭하면 그 문장/남은 발언 횟수, BetPlaced는 당시 칩/판돈/차례를 보여준다.
+- 마지막 베팅 직후와 RoundEnded 정산 직후가 다른 프레임으로 조회된다.
+- 공개 전/폴드/AI-only 관전 카드가 나중 결과로 바뀌지 않는다. 토큰/메모 원문이 없다.
+- 여러 라운드 이후에도 초기 라운드를 선택할 수 있고, 새로고침 후 같은 테이블에서 재조회된다.
+- 과거를 보는 동안 실제 게임과 SSE는 진행하고 선택 화면은 고정된다. 복귀 시 최신 상태가 보인다.
+- 과거에서 모든 게임 변경 경로를 차단하고 실제 LLM/MCP 호출 횟수가 늘지 않는다.
+- 게임 finished 후 기록은 유지되고 명시적 DELETE/서버 재시작 이후에는 조회가 불가능하다.
+- 빠른 연속 선택, 조회 실패, SSE 재접속, 중복 사건에서 프레임이 섞이거나 중복되지 않는다.
 
 ## 8. 후속 구현 순서
 
 1. PlayerSeat/SlimeAvatar/PlayingCard/SpeechBubble, 고정 좌석/중앙 정보/기록 표시는 구현 완료.
 2. GameSetup/GameToolbar/HumanControls/BettingControls의 입력과 emits, 미리보기 연결은 구현 완료.
 3. 실제 서버 관찰 → TableView 변환과 일반 API/SSE/실시간 상태, 인간 명령 연결은 구현 완료(fake 검증).
-4. 사건별 관찰 저장/조회 백엔드 구현.
-5. 리플레이 탐색을 같은 표시 컴포넌트에 연결.
+4. 7절의 현재 게임 메모리 기록/정확한 사건별 저장/인증된 history 조회 구현 완료.
+5. 기록 클릭과 리플레이 탐색, 실시간 상태 분리/명령 차단을 같은 표시 컴포넌트에 연결 완료.
 
 각 단계가 끝나도 실제 모델을 돌리지 않고 fake 백엔드로 화면/입력을 점검할 수 있게 한다.

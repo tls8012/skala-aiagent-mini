@@ -1,13 +1,14 @@
 <script setup>
 import { nextTick } from 'vue';
 
-defineProps({
+const props = defineProps({
   entries: { type: Array, default: () => [] },
   selectedEventId: { type: Number, default: null },
   selectedFrameId: { type: String, default: null },
   replayAvailable: { type: Boolean, default: false },
 });
-defineEmits(['seek-frame']);
+const emit = defineEmits(['seek-frame']);
+function seek(entry) { if (props.replayAvailable && entry.frameId) emit('seek-frame', entry.frameId); }
 const elements = new Map();
 function setEntryRef(id, element) {
   if (id == null) return;
@@ -34,12 +35,13 @@ defineExpose({ focusEvent });
         :key="entry.id"
         :ref="element => setEntryRef(entry.eventId, element)"
         class="event-log__entry"
-        :class="{ 'event-log__entry--selected': (selectedEventId != null && entry.eventId === selectedEventId) || (entry.frameId && entry.frameId === selectedFrameId) }"
+        :class="{ 'event-log__entry--selected': (selectedEventId != null && entry.eventId === selectedEventId) || (entry.frameId && entry.frameId === selectedFrameId), 'event-log__entry--seekable': replayAvailable && entry.frameId }"
         tabindex="-1"
+        @click="seek(entry)"
       >
         <div class="event-log__meta"><strong>{{ entry.playerLabel || (entry.playerId === 'human' ? '나' : entry.playerId || '테이블') }}</strong><span>라운드 {{ entry.roundId }} · #{{ entry.eventId ?? '—' }}</span></div>
         <p>{{ entry.text }}</p>
-        <button v-if="replayAvailable && entry.frameId" type="button" @click="$emit('seek-frame', entry.frameId)">이 시점 보기</button>
+        <button v-if="replayAvailable && entry.frameId" type="button" :aria-current="entry.frameId === selectedFrameId ? 'step' : undefined" @click.stop="seek(entry)">이 시점 보기</button>
       </article>
     </div>
   </aside>
@@ -54,6 +56,8 @@ defineExpose({ focusEvent });
 .event-log__empty { padding: 15px; color: #8a91a0; font-size: 13px; }
 .event-log__entry { padding: 14px 12px; border: 1px solid transparent; border-radius: 12px; outline: none; }
 .event-log__entry + .event-log__entry { margin-top: 5px; }
+.event-log__entry--seekable { cursor: pointer; }
+.event-log__entry--seekable:hover { background: #f0f3f9; }
 .event-log__entry--selected, .event-log__entry:focus-visible { border-color: #bfc9df; background: #edf1f9; }
 .event-log__meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; }
 .event-log__meta > span { color: #949ba8; font-size: 10px; }

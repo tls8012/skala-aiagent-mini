@@ -90,12 +90,16 @@
 
 /**
  * @typedef {Object} ReplayFrame
- * @property {string} id 불투명한 프레임 ID. 이벤트/전송 커서/배열 인덱스와 혼용하지 않는다.
- * @property {number} roundId
- * @property {number} eventId
- * @property {number|null} sequence
- * @property {EventEntry} cause
- * @property {TableView} view 해당 사건 시점에 허용된 관찰만 담은 읽기 전용 화면 상태.
+ * @property {string} frame_id 불투명한 ID. 사건/전송 커서/배열 인덱스와 혼용하지 않는다.
+ * @property {string} game_id
+ * @property {number} round_id
+ * @property {number} event_id
+ * @property {Object} event 해당 프레임을 만든 원본 공개 사건. SSE sequence는 없다.
+ * @property {Object} snapshot 해당 사건 직후 허용된 화면 상태. toTableView로 변환한다.
+ * @property {'player'|'spectator'} snapshot.perspective
+ * @property {Object} snapshot.visible_cards 그때 허용된 카드만 포함한다.
+ * @property {Object[]} snapshot.display_events 플레이어별 최신 Speech/BetPlaced만 포함한다.
+ * @property {{participation:string, remaining_utterances:number}} snapshot.human_display
  */
 
 /**

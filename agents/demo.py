@@ -1,4 +1,4 @@
-"""AI-only 그래프 데모. 기본은 외부 모델 없이 실행하는 fake 모드."""
+"""AI-only 그래프 데모. 기본 백엔드는 GameConfig.llm_backend를 따른다."""
 import argparse
 import asyncio
 from dataclasses import replace
@@ -119,7 +119,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     from dotenv import load_dotenv
     load_dotenv()
-    parser.add_argument('--mode', choices=GAME_BACKENDS, default='fake')
+    parser.add_argument('--mode', choices=GAME_BACKENDS, default=GameConfig().llm_backend)
     parser.add_argument('--players', type=int, default=3)
     parser.add_argument('--rounds', type=int, default=1)
     parser.add_argument('--model', help='선택한 백엔드의 config 모델을 재정의')

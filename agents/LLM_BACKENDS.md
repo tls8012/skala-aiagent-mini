@@ -9,7 +9,7 @@ OpenAI 기본 모델은 공식 ID `gpt-6-luna`다. [공식 모델 문서](https:
 `agents/config.py`의 GameConfig에서 바꾼다.
 
 ```python
-llm_backend: str = 'ollama'                 # 직접 호출/실험의 기본 공급자
+llm_backend: str = 'ollama'                 # 서버/데모/실험의 기본 공급자
 ollama_model: str = 'qwen3:8b'
 router_model: str = 'qwen3.5:2b'             # Ollama 발언 해석 모델
 openai_model: str = 'gpt-6-luna'
@@ -25,18 +25,19 @@ OpenAI 키는 `OPENAI_API_KEY` 환경변수나 루트 `.env`에서 읽는다. co
 서버는 `OPENAI_MODEL`, `OPENAI_ROUTER_MODEL` 환경변수로 config의 모델명을 재정의할 수도 있다.
 
 ```sh
-# 웹 연결: 기존 서버의 실행 모드를 OpenAI로 지정
-LLM_BACKEND=openai .venv/bin/python server.py
+# 웹 연결: config.llm_backend의 공급자로 실행
+.venv/bin/python server.py
 
 # 웹 없이 에이전트 둘로 한 라운드
-.venv/bin/python -m agents.demo --mode openai --players 2 --rounds 1
+.venv/bin/python -m agents.demo --players 2 --rounds 1
 
 # 실험도 같은 팩토리를 사용한다. 먼저 소량 확인 가능
-.venv/bin/python -m experiments.run --stage 1 --backend openai --cases 1
+.venv/bin/python -m experiments.run --stage 1 --cases 1
 ```
 
-서버/데모의 fake 기본 동작은 유지한다. 서버의 `LLM_BACKEND`, 데모의 `--mode`, 실험의 `--backend`를
-명시하면 그 실행의 공급자를 선택한다. 실험에서 --backend를 생략하면 config.llm_backend를 따른다.
+서버/데모/실험 모두 옵션을 생략하면 config.llm_backend를 따른다. OpenAI를 쓰려면
+config에서 llm_backend='openai'로 설정한다. 서버의 `LLM_BACKEND`, 데모의 `--mode`, 실험의 `--backend`를
+명시하면 그 실행의 공급자를 재정의한다. fake가 필요하면 LLM_BACKEND=fake 또는 --mode/--backend fake를 지정한다.
 `--model`은 선택한 공급자의 모델을 재정의한다. 자동으로 다른 공급자나 다른 모델로 fallback하지 않는다.
 
 OpenAI는 판단/발언 해석을 담당한다. **RAG 임베딩은 기존 Ollama embeddinggemma를 계속 사용한다.**

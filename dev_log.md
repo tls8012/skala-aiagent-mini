@@ -1523,8 +1523,8 @@ PlayerLLM의 개인 메모 첨부, SpeechInterpreter의 인간 발언 해석, �
 - experiments: --backend openai, 사전 모델 접근 점검, 동일 조건/시간/입출력 로그를 지원한다.
   RAG 임베딩은 기존 Ollama embeddinggemma를 유지한다.
 
-설정과 연결 예시는 agents/LLM_BACKENDS.md 및 .env.example에 작성했다. 서버/데모는 기존처럼
-fake가 기본이고, 실모델 모드는 LLM_BACKEND/--mode로 명시한다. 실험의 기본 공급자는 config를 따른다.
+설정과 연결 예시는 agents/LLM_BACKENDS.md 및 .env.example에 작성했다. 서버/데모/실험은
+모두 config.llm_backend를 기본값으로 사용하며 LLM_BACKEND/--mode/--backend로 재정의할 수 있다.
 
 실제 GPT-6 Luna 검증: 실험 1단계 no_information 한 건이 그래프/메모/접수를 통과했다
 (실행 ID 20261021T040020-d1ab91ee). 인간 발언의 chat/game 의도 JSON 해석, SSE delta/완료/
@@ -1534,3 +1534,6 @@ usage도 확인했다. 임시 저장소에서 두 실제 모델 에이전트가 
 회귀 검증: Python 114개 중 113개 통과. 나머지 하나는 이미 구현된 graph_practice가
 NotImplementedError를 던진다고 가정하는 기존 검사이며 연습 파일은 변경하지 않았다.
 프런트 25개 검사와 Vue SFC 렌더링, production build 및 git diff --check를 통과했다.
+
+기본값 통일 후 추가 확인: 서버와 데모에서 Ollama/OpenAI config 기본값 및 명시적 fake
+재정의를 모델 호출 없이 확인했다. LLM 연결 검사 12개와 서버 계약 검사 13개를 통과했다.

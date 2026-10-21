@@ -62,7 +62,7 @@ def create_app(config: GameConfig | None = None, backend: str | None = None, mcp
     async def lifespan(app: FastAPI):
         global CREATION_COUNT
         settings = config if config is not None else _configuration()
-        mode = backend if backend is not None else os.environ.get('LLM_BACKEND', 'fake')
+        mode = backend if backend is not None else os.environ.get('LLM_BACKEND', settings.llm_backend)
         settings = configure_backend(settings, mode)
         CREATION_COUNT += 1
         mcp = None

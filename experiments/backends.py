@@ -204,7 +204,8 @@ async def prepare_tools(table, client, recorder, trial_id, memos, *, index=False
             return
         loop = asyncio.get_running_loop()
         deadline = loop.time() + timeout
-        query = {**identity, 'query': '상대 주장 블러핑 공개 결과', 'limit': 3}
+        opponent = next(pid for pid in table.players if pid != 'A')
+        query = {**identity, 'query': '상대 주장 블러핑 공개 결과', 'limit': 3, 'opponent_id': opponent}
         result = await client.call_tool('search_experiences', query, server='poker')
         probed = False
         while True:

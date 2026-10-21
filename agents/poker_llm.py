@@ -55,13 +55,13 @@ class PokerLLM:
             message = candidates[-1]
         else:
             return {'status': 'skipped', 'matches': []}
-        key = (observation.round_id, message['event_id'], observation.current_bet)
+        key = (observation.round_id, message['player_id'], message['event_id'], observation.current_bet)
         if key == self._research_key and self._research_result is not None:
             return self._research_result
         query = (f"상대 {message['player_id']}의 주장과 블러핑: {message['text']} "
                  f"현재 추가 베팅액 {observation.current_bet}")[:self.config.max_message_chars]
         result = await self.table.call_player_tool(self.mcp, self.player_id,
-                                                   'search_experiences', {'query': query, 'limit': 3})
+            'search_experiences', {'query': query, 'limit': 3, 'opponent_id': message['player_id']})
         if result.get('status') == 'ready':
             self._research_key, self._research_result = key, result
         return result
@@ -152,6 +152,8 @@ class PokerLLM:
             '에이전트끼리 잡담을 시작하지 않는다. 인간의 일반 질문은 지목된 본인만 답한다. '
             '목표는 칩을 얻는 것이다. 상대의 주장과 과거 경험을 참고해 판단을 바꿀 수 있다. '
             '과거 경험이 없으면 현재 관찰 정보로 판단한다. '
+            '검색 결과의 round_context.result는 해당 과거 라운드의 공개 결과다. '
+            '주장과 같은 라운드의 공개 카드를 연결해 판단하되, 공개되지 않은 카드는 미확인으로 둔다. '
             'JSON만 출력한다. speech=speak는 짧은 한국어 게임 발언, silent는 할 말 없음, '
             'unavailable은 연속 발언 제한 등으로 발언할 수 없음을 뜻한다. '
             '말하지 않으면 text는 빈 문자열이다. '

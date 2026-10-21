@@ -4,6 +4,7 @@
 연결/출처 바인딩은 Table.call_player_tool()을 사용한다.
 """
 from concurrent.futures import ThreadPoolExecutor
+from copy import deepcopy
 import hashlib
 import json
 from pathlib import Path
@@ -273,8 +274,12 @@ class GameTools:
                               embeddings=[item[2] for item in batch], metadatas=[item[3] for item in batch])
 
     def search_experiences(self, game_id: str, agent_id: str, round_id: int,
-                           query: str, limit: int = 3) -> dict:
+                           query: str, limit: int = 3, opponent_id: str | None = None) -> dict:
         self._identity(game_id, agent_id, round_id)
+        if opponent_id is not None:
+            safe_id(opponent_id)
+            if opponent_id == agent_id:
+                raise ValueError('opponent_id must differ from the calling agent')
         if not query.strip() or len(query) > self.config.max_message_chars or not 1 <= limit <= 20:
             raise ValueError('invalid query or limit')
         with self._lock:
@@ -286,11 +291,21 @@ class GameTools:
         try:
             collection = self._collection(game_id)
             current = collection.get(include=['metadatas'])
-            parents = {row['id'] for row in rows}
+            parents = {row['id']: row for row in rows}
             count = sum(1 for meta in current['metadatas']
                         if (meta or {}).get('experience_id') in parents)
             if not count:
                 return {'status': 'unavailable' if error else 'indexing', 'matches': [], 'error': error}
+            where = {'experience_id': {'$in': sorted(parents)}}
+            if opponent_id is not None:
+                where = {'$and': [where, {'player_id': opponent_id},
+                                   {'event_type': {'$in': ['Speech', 'BetPlaced']}}]}
+                count = sum(1 for meta in current['metadatas']
+                            if (meta or {}).get('experience_id') in parents
+                            and meta.get('player_id') == opponent_id
+                            and meta.get('event_type') in {'Speech', 'BetPlaced'})
+                if not count:
+                    return {'status': 'ready', 'matches': []}
             # 긴 질의도 생략하지 않고 분할 검색한 뒤 거리 기준으로 중복 결과를 합친다.
             event = EventDocument('query', 'query', round_id, 0, 'query', agent_id, query)
             embedded = self._embed_chunks(self.chunker.chunks(event))
@@ -298,14 +313,21 @@ class GameTools:
             for start in range(0, len(embedded), self.config.embedding_batch_size):
                 batch = embedded[start:start + self.config.embedding_batch_size]
                 result = collection.query(query_embeddings=[vector for _, vector in batch],
-                    n_results=min(limit, count), where={'experience_id': {'$in': sorted(parents)}},
+                    n_results=min(limit, count), where=where,
                     include=['documents', 'metadatas', 'distances'])
                 for ids, documents, metadatas, distances in zip(result['ids'], result['documents'],
                                                               result['metadatas'], result['distances']):
                     for item_id, text, meta, distance in zip(ids, documents, metadatas, distances):
+                        parent = parents.get((meta or {}).get('experience_id'))
+                        if parent is None or meta.get('round_id') != parent['round_id']:
+                            continue
                         if item_id not in matches or distance < matches[item_id]['distance']:
                             matches[item_id] = {'id': item_id, 'text': text,
-                                                'metadata': meta, 'distance': distance}
+                                                'metadata': meta, 'distance': distance,
+                                                # 공개 원본으로 보완한다. 청크나 거리로 결과를 추측하지 않는다.
+                                                'round_context': {'experience_id': parent['id'],
+                                                    'round_id': parent['round_id'],
+                                                    'result': deepcopy(parent['result'])}}
             return {'status': 'ready', 'matches': sorted(matches.values(),
                     key=lambda item: item['distance'])[:limit]}
         except Exception as error:
@@ -355,9 +377,14 @@ def write_memo(game_id: str, agent_id: str, round_id: int, scope: str,
 
 
 @mcp.tool()
-def search_experiences(game_id: str, agent_id: str, round_id: int, query: str, limit: int = 3) -> dict:
-    """해당 테이블의 공개 라운드 경험을 의미 검색한다. 없으면 indexing/unavailable 반환."""
-    return get_tools().search_experiences(game_id, agent_id, round_id, query, limit)
+def search_experiences(game_id: str, agent_id: str, round_id: int, query: str, limit: int = 3,
+                       opponent_id: str | None = None) -> dict:
+    """상대의 발언/베팅을 검색하고 같은 과거 라운드의 공개 결과를 round_context로 첨부한다.
+
+    게임 판단은 opponent_id를 명시한다. 생략 시 테이블 전체 조회를 지원한다.
+    공개되지 않은 카드는 결과에 없으며, 상대 기록이 없으면 ready + 빈 matches다.
+    """
+    return get_tools().search_experiences(game_id, agent_id, round_id, query, limit, opponent_id)
 
 
 @mcp.tool()

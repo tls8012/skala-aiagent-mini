@@ -1537,3 +1537,29 @@ NotImplementedError를 던진다고 가정하는 기존 검사이며 연습 파�
 
 기본값 통일 후 추가 확인: 서버와 데모에서 Ollama/OpenAI config 기본값 및 명시적 fake
 재정의를 모델 호출 없이 확인했다. LLM 연결 검사 12개와 서버 계약 검사 13개를 통과했다.
+
+### 상대별 경험 검색과 같은 과거 라운드의 공개 결과 첨부
+
+agents/mcp_server.py의 search_experiences에 선택 인자 opponent_id를 추가했다.
+기존 직접 호출의 전체 테이블 조회는 유지하되 실제 게임 판단에서는 PokerLLM.research가
+검색 대상 발언의 player_id를 반드시 전달한다. 호출자 agent_id는 여전히 Table이 주입한다.
+검색 캐시 키에도 대상 ID를 포함했다. 실험의 색인 준비 probe도 같은 상대를 지정한다.
+
+- Chroma where: 보관 중인 experience_id와 상대 player_id, Speech/BetPlaced 유형을 함께
+  제한한다. 대상 자료가 없으면 ready/빈 matches로 반환하고 다른 참가자로 대체하지 않는다.
+- 각 match의 기존 id/text/metadata/distance를 유지하고 round_context를 추가한다.
+  experience_id와 round_id를 원본 공개 JSON 기록에 대조해 같은 과거 라운드의 result를 붙인다.
+  round_context = {experience_id, round_id, result}이며 result는 winner/draw/pot/carry_pot/
+  revealed_cards/eliminated다. Chroma에 저장한 기존 메타데이터를 사용하므로 스키마 변경이나
+  전체 재임베딩은 필요 없다. 공개 결과를 벡터 유사도로 별도 선택하지 않는다.
+- 원본 공개 result만 복사하므로 폴드 카드·개인 메모·현재 자기 카드는 추가하지 않는다.
+  판단 프롬프트에는 이 결과가 같은 과거 라운드의 것이라는 설명과 미공개 카드는 미확인이라는
+  설명을 추가했다. 과거 자료와 현재 관찰은 구분한다.
+
+tests/test_poker_retrieval.py는 실제 Chroma와 엔진 생성 공개 기록으로 같은 문장의 B/D 분리,
+자기 자신 제외, 같은 부모 결과 연결, 폴드 카드 비공개, 대상 부재 시 빈 결과, 캐시 대상 구분,
+모델 입력 전달을 확인한다. 임베딩 벡터는 테스트에서 주입하고 HTTP 모델 호출은 하지 않는다.
+새 검사 3개와 기존 청킹 7/엔진·메모 26/그래프 9/실험 10개, 총 55개를 통과했다.
+
+리랭킹/의미 중복 제거와 베팅 정책 변경은 이번에 구현하지 않았다. 기존 정식 결과를 덮어쓰거나
+모델 실험을 재실행하지 않았다. 리랭킹과 레이즈 편향에 대한 관찰은 exp_log.md에 기록했다.

@@ -23,6 +23,14 @@ class GameConfig:
     long_memo_max_chars: int = 3000
     graph_max_attempts: int = 3
     runner_max_decisions: int = 120
+    llm_backend: str = 'ollama'
+    openai_model: str = 'gpt-6-luna'
+    openai_router_model: str | None = None
+    openai_max_output_tokens: int = 1024
+    openai_router_max_output_tokens: int = 768
+    openai_reasoning_effort: str | None = 'none'
+    openai_timeout: float = 120.0
+    openai_usd_per_1k_tokens: float | None = None
     router_model: str = 'qwen3.5:2b'
     router_num_predict: int = 768
     router_max_attempts: int = 2
@@ -47,7 +55,8 @@ class GameConfig:
                      'max_message_chars', 'event_history_limit', 'round_memo_max_chars', 'game_memo_max_chars',
                      'long_memo_max_chars', 'embedding_context_tokens',
                      'embedding_chunk_max_bytes', 'embedding_batch_size', 'graph_max_attempts',
-                     'runner_max_decisions', 'ollama_num_predict', 'router_num_predict', 'router_max_attempts'):
+                     'runner_max_decisions', 'ollama_num_predict', 'router_num_predict', 'router_max_attempts',
+                     'openai_max_output_tokens', 'openai_router_max_output_tokens'):
             if type(getattr(self, name)) is not int or getattr(self, name) < 1:
                 raise ValueError(f'{name} must be a positive integer')
         if self.sse_heartbeat_seconds <= 0:
@@ -68,6 +77,14 @@ class GameConfig:
             raise ValueError('invalid router model or timeout')
         if self.embedding_timeout <= 0:
             raise ValueError('embedding_timeout must be positive')
+        if self.llm_backend not in {'ollama', 'openai'} or not self.openai_model.strip():
+            raise ValueError('invalid LLM backend or OpenAI model')
+        if self.openai_router_model is not None and not self.openai_router_model.strip():
+            raise ValueError('invalid OpenAI router model')
+        if self.openai_reasoning_effort not in {None, 'none', 'low', 'medium', 'high', 'xhigh', 'max'}:
+            raise ValueError('invalid OpenAI reasoning effort')
+        if self.openai_timeout <= 0 or (self.openai_usd_per_1k_tokens is not None and self.openai_usd_per_1k_tokens < 0):
+            raise ValueError('invalid OpenAI timeout or token price')
         object.__setattr__(self, 'data_dir', Path(self.data_dir))
 
     def memo_limit(self, scope: str) -> int:

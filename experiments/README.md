@@ -6,7 +6,9 @@
 ## 실행과 로그 확인
 
 프로젝트 루트에서 실행한다. 웹 서버나 게임 서버를 띄울 필요가 없고, Ollama 모드에서는
-로컬 Ollama와 config에 지정된 판단/임베딩 모델이 필요하다. 새 라이브러리는 추가하지 않았다.
+로컬 Ollama와 config에 지정된 판단/임베딩 모델이 필요하다. OpenAI 판단도 지원하며
+`--backend openai`와 OPENAI_API_KEY를 사용한다. 검색 임베딩은 기존 Ollama를 유지한다.
+새 라이브러리는 추가하지 않았다.
 
 ```sh
 # 먼저 모델 호출 없이 엔진/그래프/로그 배선 확인
@@ -19,9 +21,12 @@
 
 # 한 조건만 소량 확인하거나 모델을 바꿀 때
 .venv/bin/python -m experiments.run --stage 2 --cases 1 --conditions search_only --model qwen3:8b
+
+# GPT-6 Luna로 같은 경로 실행
+.venv/bin/python -m experiments.run --stage 1 --cases 1 --backend openai
 ```
 
-기본 backend는 ollama다. `--backend fake`에서는 실제 그래프/게임 엔진/파일 메모는 사용하지만
+기본 backend는 GameConfig.llm_backend(현재 ollama)다. `--backend fake`에서는 실제 그래프/게임 엔진/파일 메모는 사용하지만
 모델과 검색 결과는 smoke용 응답이다. manifest의 evidence_run=false로 구분하며 성능 근거로 쓰지 않는다.
 cases는 1..30, 기본 30이다. 1단계 3조건, 2단계 4조건, 3단계 상대별 2조건이 기본이다.
 `--conditions`에 해당 단계의 이름을 여러 개 넘기면 일부 조건만 실행한다.
@@ -53,7 +58,8 @@ CLI는 외부 LangSmith 전송을 끄고 로컬 파일에 기록한다.
 - trial_total은 개별 조건의 상태 준비·도구 연결·판단/라운드·정리 시간이다. 공용 과거 뱅크 생성은 별도 preparation이다.
 - LangGraph callback에서 route/research/answer/validate/remember의 실제 각 실행을 측정한다.
   검증 재시도도 별도 span이며, summary 경로도 기존 answer/remember 이름으로 기록한다.
-- model/ollama_complete는 기존 동기 HTTP complete()의 왕복 시간이다. 서버 큐·모델 로딩·생성·전송을 포함한다.
+- model/llm_complete는 선택한 공급자의 동기 HTTP complete() 왕복 시간이다. 예전 로그는 ollama_complete라는 이름이다.
+  서버 큐·모델 로딩·생성·전송을 포함한다.
   스트리밍이 아니므로 첫 토큰 시간(TTFT), 순수 GPU 생성 시간이나 prefill/decode 분리는 제공하지 않는다.
 - tool 시간은 MCP 왕복(클라이언트 락 대기 포함)이다. 검색 내부 임베딩/Chroma 각각의 시간은 기존 도구가
   반환하지 않으므로 분해하지 않는다. 색인 준비·probe는 preparation, 실제 검색은 research/tool로 구분한다.
@@ -83,7 +89,7 @@ Ollama 판단 호출은 실제로 수행한다. fake는 배선 점검에만 사�
   → Table.observe(A) + 실제 공개 event
   → build_graph(실험용 PokerLLM 경계 객체).ainvoke(...)
        → PokerLLM.route/research/decide/remember
-       → PlayerLLM → 기존 OllamaLLM
+       → PlayerLLM → llm_controller → OllamaLLM / OpenAILLM
        → Table.call_player_tool → 조건 제어 어댑터 → 기존 MCPClient
   → Table.apply_decision(A, decision, request_id)
   → 원본 결정/메모/접수 결과/상태/사용량 기록
@@ -100,6 +106,7 @@ Ollama 판단 호출은 실제로 수행한다. fake는 배선 점검에만 사�
 | agents/poker_llm.py PokerLLM | 기존 업무 프롬프트/스키마/기억 갱신. 필요한 research 경계만 실험용 하위 클래스에서 제어 |
 | agents/player_llm.py PlayerLLM | 세 개인 메모 자동 첨부 경로 유지 |
 | agent/ollama_client.py OllamaLLM | 실제 HTTP/JSON 스키마/usage 재사용. 실험용 관찰 래퍼로 최종 입력/응답 기록 |
+| agent/llm_controller.py / openai_client.py | 공급자 선택과 OpenAI Responses API. 모델·출력 한도는 GameConfig 사용 |
 | agent/mcp_client.py MCPClient, agents/mcp_server.py | 메모 저장, Chroma/임베딩, 경험 적재/색인 상태 확인 |
 | agents/runner.py RoundRunner | 3단계 사건 전달·병렬 AI 판단·상태 적용·회고 |
 | agents/demo.py ScriptedPokerLLM | 참고용. 기본 체크/콜을 공격적/수비적 상대 정책으로 간주하지 않음 |

@@ -12,6 +12,7 @@ from .models import AgentDecision, Bet, SpeechIntent, SpeechInterpretation
 from .poker_llm import PokerLLM
 from .runner import RoundRunner
 from .table import Table
+from agent.llm_controller import GAME_BACKENDS, configure_backend, configure_model, model_name
 
 
 class ScriptedPokerLLM(PokerLLM):
@@ -76,15 +77,15 @@ def print_event(event):
 
 
 async def run_demo(args):
-    config = GameConfig()
+    config = configure_model(configure_backend(GameConfig(), args.mode), args.model)
     changes = {key: value for key, value in {
-        'ollama_model': args.model, 'seed': args.seed, 'data_dir': args.data_dir,
+        'seed': args.seed, 'data_dir': args.data_dir,
         'runner_max_decisions': args.max_decisions}.items() if value is not None}
     config = replace(config, **changes)
     table = Table([f'AI{i + 1}' for i in range(args.players)], config=config)
     mcp = None
     try:
-        if args.mode == 'ollama' or args.publish_memory:
+        if args.mode != 'fake' or args.publish_memory:
             from agent.mcp_client import MCPClient
             # Table과 subprocess가 같은 설정/저장 루트를 사용하게 한다.
             from .config import export_mcp_config
@@ -93,13 +94,13 @@ async def run_demo(args):
             mcp = MCPClient(flaky_first_tool_call=False, server_scripts={
                 'poker': Path(__file__).with_name('mcp_server.py').resolve()})
             await mcp.start()
-        if args.mode == 'ollama':
+        if args.mode != 'fake':
             from .player_llm import PlayerLLM
             backends = {pid: PokerLLM(table, mcp, pid, PlayerLLM(table, mcp, pid)) for pid in table.players}
         else:
             backends = {pid: ScriptedPokerLLM(table, mcp, pid, None) for pid in table.players}
         graphs = {pid: build_graph(backend) for pid, backend in backends.items()}
-        print(f'모드={args.mode}, 모델={config.ollama_model}, 참가자={args.players}', flush=True)
+        print(f'모드={args.mode}, 모델={model_name(config)}, 참가자={args.players}', flush=True)
         runner = RoundRunner(table, graphs, on_event=print_event)
         for _ in range(args.rounds):
             result = await runner.run_round(mcp=mcp, publish_memory=args.publish_memory)
@@ -116,10 +117,12 @@ async def run_demo(args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--mode', choices=['fake', 'ollama'], default='fake')
+    from dotenv import load_dotenv
+    load_dotenv()
+    parser.add_argument('--mode', choices=GAME_BACKENDS, default='fake')
     parser.add_argument('--players', type=int, default=3)
     parser.add_argument('--rounds', type=int, default=1)
-    parser.add_argument('--model', help='기본값은 config.ollama_model')
+    parser.add_argument('--model', help='선택한 백엔드의 config 모델을 재정의')
     parser.add_argument('--seed', type=int)
     parser.add_argument('--data-dir', type=Path)
     parser.add_argument('--max-decisions', type=int)

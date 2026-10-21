@@ -5,9 +5,8 @@ import importlib
 import os
 from pathlib import Path
 
-import httpx
-
-from agent.ollama_client import OLLAMA_URL
+from agent.llm_controller import GAME_BACKENDS, check_backend
+from agents.config import GameConfig
 from .common import ExperimentConfig, RunRecorder
 from .report import read_rows, summarize
 
@@ -15,15 +14,12 @@ from .report import read_rows, summarize
 async def run(config):
     recorder = RunRecorder(config)
     try:
-        if config.backend == 'ollama':
-            with recorder.span('preparation', 'ollama_preflight'):
-                response = await asyncio.to_thread(httpx.get, OLLAMA_URL.removesuffix('/api/chat') + '/api/tags', timeout=5)
-                response.raise_for_status()
-                model = config.model or recorder.game_config('preflight').ollama_model
-                found = next((m for m in response.json()['models'] if m['name'] in {model, model + ':latest'}), None)
-                if not found:
-                    raise ValueError(f'Ollama model is not installed: {model}')
-                recorder.manifest.update(model=model, model_digest=found.get('digest'))
+        if config.backend != 'fake':
+            with recorder.span('preparation', 'llm_preflight'):
+                settings = recorder.game_config('preflight')
+                recorder.manifest.update(await asyncio.to_thread(check_backend, settings))
+                if settings.llm_backend == 'openai' and settings.openai_reasoning_effort != 'none':
+                    recorder.manifest['temperature'] = None
                 recorder.save_manifest()
         with recorder.span('run', 'all_stages_requested'):
             module = importlib.import_module(f'experiments.stage{config.stage}')
@@ -41,10 +37,12 @@ async def run(config):
 
 
 def main():
+    from dotenv import load_dotenv
+    load_dotenv()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--stage', type=int, required=True, choices=(1, 2, 3))
     parser.add_argument('--cases', type=int, default=30)
-    parser.add_argument('--backend', choices=('ollama', 'fake'), default='ollama')
+    parser.add_argument('--backend', choices=GAME_BACKENDS, default=GameConfig().llm_backend)
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--model')
     parser.add_argument('--conditions', nargs='+', default=[])

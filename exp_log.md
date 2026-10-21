@@ -138,3 +138,16 @@ MCP 검색 내부의 임베딩/Chroma 개별 시간도 분해하지 않고 도�
 취소 후 응답 수집, 실제 접수 연결과 수동 평가 보존을 확인한다.
 기존 전체 Python 검사에서는 연습 graph_practice가 NotImplementedError를 던진다고 가정하는
 검사 1개가 실패했다. 이번 실험 작업은 해당 연습 파일과 기존 검사를 수정하지 않았다.
+
+## OpenAI 백엔드 호환 검증
+
+`--backend openai`를 추가했다. 실제 생성은 agent/llm_controller.py를 거치며 config의
+openai_model(기본 gpt-6-luna)을 사용한다. 기존 조건/엔진/메모/시간 로그를 재사용한다.
+실험의 모델 구간 이름은 공급자 공통 llm_complete로 바꿨다. 이전 ollama_complete 로그는 그대로 읽을 수 있다.
+
+실행 ID `20261021T040020-d1ab91ee`: 1단계 no_information 한 상황을 실제 GPT-6 Luna로 실행해
+1/1 정상 접수·메모 저장을 확인했다. 전체 4.745초, 해당 모델 HTTP 왕복 약 2.529초였다.
+이는 연결 검사이며 기존 Ollama 실행과의 성능 비교나 정보 효과 평가가 아니다.
+OpenAI Responses의 result wrapper는 통신 어댑터에서 풀어 기존 결정 계약으로 반환한다.
+API 키/요청 헤더는 config나 실험 로그에 저장하지 않는다. 실제 토큰은 usage에 남기며
+청구 금액을 알 수 없는 기본 usd는 None이다.

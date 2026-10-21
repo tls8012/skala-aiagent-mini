@@ -61,6 +61,15 @@ test('초기화는 자동으로 게임을 만들지 않는다', async () => {
   assert.equal(f.session.health.backend, 'fake'); f.session.dispose();
 });
 
+test('연결 안내는 현재 공급자의 모델을 표시한다', async () => {
+  const f = fixture();
+  f.api.checkHealth = async () => ({ status: 'ok', llm_backend: 'openai', llm_model: 'gpt-6-luna', ollama_model: 'qwen3:8b' });
+  await f.session.initialize();
+  assert.equal(f.session.health.backend, 'openai');
+  assert.equal(f.session.health.model, 'gpt-6-luna');
+  f.session.dispose();
+});
+
 test('접수 불명확 시 같은 요청 ID/본문으로만 재확인한다', async () => {
   const f = fixture(); await open(f);
   const bodies = [];

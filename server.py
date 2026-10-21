@@ -16,6 +16,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import Field, model_validator
 
 from agent.mcp_client import MCPClient
+from agent.llm_controller import configure_backend, model_name
 from agents.config import GameConfig, export_mcp_config, load_mcp_config
 from agents.game_service import GameService, GameSession, ServiceError
 from agents.models import Contract, PlayerCommand, safe_id
@@ -50,7 +51,8 @@ class ReleaseSpeechRequest(Contract):
 def _configuration() -> GameConfig:
     config = load_mcp_config()
     changes = {key: os.environ[name] for key, name in
-               [('ollama_model', 'OLLAMA_MODEL'), ('router_model', 'ROUTER_MODEL')]
+               [('ollama_model', 'OLLAMA_MODEL'), ('router_model', 'ROUTER_MODEL'),
+                ('openai_model', 'OPENAI_MODEL'), ('openai_router_model', 'OPENAI_ROUTER_MODEL')]
                if os.environ.get(name)}
     return replace(config, **changes)
 
@@ -61,13 +63,12 @@ def create_app(config: GameConfig | None = None, backend: str | None = None, mcp
         global CREATION_COUNT
         settings = config if config is not None else _configuration()
         mode = backend if backend is not None else os.environ.get('LLM_BACKEND', 'fake')
-        if mode not in {'fake', 'ollama'}:
-            raise ValueError('LLM_BACKEND must be fake or ollama')
+        settings = configure_backend(settings, mode)
         CREATION_COUNT += 1
         mcp = None
         service = None
         try:
-            if mode == 'ollama':
+            if mode != 'fake':
                 mcp = (mcp_factory or MCPClient)(flaky_first_tool_call=False,
                     server_scripts={'poker': Path(__file__).parent / 'agents' / 'mcp_server.py'})
                 # 기존 클라이언트가 subprocess 환경을 복사하는 시점에만 설정을 전달한다.
@@ -116,6 +117,8 @@ def create_app(config: GameConfig | None = None, backend: str | None = None, mcp
         return {'status': 'ok', 'instance_id': request.app.state.instance_id,
                 'creation_count': request.app.state.creation_count, 'llm_backend': service.backend,
                 'ollama_model': service.config.ollama_model, 'router_model': service.config.router_model,
+                'llm_model': model_name(service.config) if service.backend != 'fake' else None,
+                'llm_router_model': model_name(service.config, 'router') if service.backend != 'fake' else None,
                 'mcp_connected': service.mcp is not None, 'game_count': service.game_count}
 
     @app.post('/games', status_code=201, summary='AI 및 선택적 인간 테이블 생성')

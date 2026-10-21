@@ -24,6 +24,9 @@ http://127.0.0.1:5173 에서 AI 인원과 참여 여부를 선택하고 테이�
 과거를 보는 동안 실제 게임은 계속 진행하며 모든 게임 입력은 잠긴다.
 기본 fake 모드는 실제 LLM/MCP를 호출하지 않는다. `LLM_BACKEND=ollama`로 서버를
 실행하면 기존 Ollama/MCP 경로를 사용하며 화면의 연결 안내에 모델을 표시한다.
+`LLM_BACKEND=openai`는 GPT-6 Luna를 사용한다. 모델은 agents/config.py의 openai_model로
+변경하며 OPENAI_API_KEY를 환경변수/.env에 둔다. 연결 안내는 health의 실제 선택 모델을 표시한다.
+공급자 연결 설명은 [LLM_BACKENDS.md](../agents/LLM_BACKENDS.md)에 정리했다.
 
 빌드한 화면을 쓸 때는 `npm run build --prefix web` 후 8600의 웹 프록시를 열면 된다.
 `npm run preview`는 Vite 빌드 확인용이며 게임 프록시를 제공하지 않는다.

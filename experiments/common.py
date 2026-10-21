@@ -1,7 +1,7 @@
 """실험 설정과 관찰 전용 로그. 게임 상태는 기존 엔진이 관리한다."""
 from contextlib import contextmanager
 from contextvars import ContextVar
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -15,6 +15,7 @@ from langchain_core.callbacks import BaseCallbackHandler
 
 from agents.config import GameConfig
 from agents.table import Table
+from agent.llm_controller import GAME_BACKENDS, configure_backend, configure_model
 
 ACTIVE_DECISION = ContextVar('experiment_decision', default=None)
 CONDITIONS = {
@@ -35,7 +36,7 @@ def plain(value):
 class ExperimentConfig:
     stage: int
     cases: int = 30
-    backend: str = 'ollama'
+    backend: str = field(default_factory=lambda: GameConfig().llm_backend)
     seed: int = 42
     output: Path = Path('experiments/results')
     model: str | None = None
@@ -46,7 +47,7 @@ class ExperimentConfig:
     def __post_init__(self):
         if self.stage not in (1, 2, 3) or not 1 <= self.cases <= 30:
             raise ValueError('stage=1..3, cases=1..30')
-        if self.backend not in ('fake', 'ollama') or self.timeout <= 0 or self.index_timeout <= 0:
+        if self.backend not in GAME_BACKENDS or self.timeout <= 0 or self.index_timeout <= 0:
             raise ValueError('invalid backend/timeout')
         allowed = ('no_information', 'relevant_history', 'unrelated_history') if self.stage == 1 else tuple(CONDITIONS)
         if any(c not in allowed for c in self.conditions) or len(set(self.conditions)) != len(self.conditions):
@@ -70,7 +71,7 @@ class RunRecorder:
         self.active_models = set()
         self.manifest = {'run_id': self.run_id, 'status': 'running', 'config': plain(asdict(config)),
                          'started_at': self.now(), 'backend': config.backend,
-                         'evidence_run': config.backend == 'ollama', 'temperature': 0.0,
+                         'evidence_run': config.backend != 'fake', 'temperature': 0.0,
                          'planned_trials': config.cases * len(config.arms) * (2 if config.stage == 3 else 1),
                          'conditions': config.arms, 'model_digest': None,
                          'timing_scope': 'client wall clock; spans are inclusive and may overlap',
@@ -106,11 +107,8 @@ class RunRecorder:
                       duration_s=time.perf_counter()-start, status=status, error=failure, **fields)
 
     def game_config(self, trial_id):
-        from dataclasses import replace
-        config = GameConfig(data_dir=self.root / 'data' / trial_id, seed=self.config.seed)
-        if self.config.model:
-            config = replace(config, ollama_model=self.config.model)
-        return config
+        config = configure_backend(GameConfig(data_dir=self.root / 'data' / trial_id, seed=self.config.seed), self.config.backend)
+        return configure_model(config, self.config.model)
 
     def finish(self, status='complete'):
         self.manifest.update(status=status, finished_at=self.now(), total_duration_s=time.perf_counter()-self.started)

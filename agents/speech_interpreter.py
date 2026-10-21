@@ -3,16 +3,14 @@ import asyncio
 import json
 import re
 
-from agent.ollama_client import OllamaLLM
+from agent.llm_controller import create_llm
 from .models import SpeechInterpretation
 
 
 class SpeechInterpreter:
     def __init__(self, config, client=None):
         self.config = config
-        self.client = client if client is not None else OllamaLLM(
-            config.router_model, config.ollama_usd_per_1k_tokens,
-            think=False, num_predict=config.router_num_predict)
+        self.client = client if client is not None else create_llm(config, role='router')
 
     async def interpret(self, text: str, ai_ids: list[str], target: str | None = None) -> SpeechInterpretation:
         system = (

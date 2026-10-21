@@ -1500,3 +1500,37 @@ Table의 발언 보류/관찰 권한/기존 보류 공개에서 연속 발언 �
 검증: 인간 5회 연속 발언/상한 초과/라운드 종료, AI 추론 중 연속 질문 접수와 해석 보존,
 AI 연속 답변 제한 유지를 확인했다. 포커 Python 검사 73개 중 72개 통과, 기존 연습 스텁 가정
 검사 1개 실패는 동일하다. 기록 검사 6개와 프런트 24개/SFC 렌더링/빌드 통과.
+
+### Ollama / OpenAI LLM 통신 계층 분리
+
+공급자 선택을 agent/llm_controller.py의 create_llm(config, role)에 모았다.
+LLMClient는 기존 complete(system, user, schema) → (text, usage)와 비동기 stream 계약이다.
+configure_backend/configure_model/model_name은 실행 모드·모델 재정의를 한 곳에서 처리한다.
+PlayerLLM의 개인 메모 첨부, SpeechInterpreter의 인간 발언 해석, 실험의 호출 관찰 래퍼가
+같은 팩토리를 사용한다. PokerLLM/graph/Table/Betting/Round의 판단·게임 규칙은 유지했다.
+
+- agent/ollama_client.py: 기존 구현 그대로 사용.
+- agent/openai_client.py: 기존 httpx로 Responses API와 SSE를 구현했다. API 키는 환경변수에서
+  읽고, config/실험 manifest에 저장하지 않는다. SDK 의존성은 추가하지 않았다.
+- agents/config.py: llm_backend, openai_model='gpt-6-luna', 선택적 openai_router_model,
+  출력 토큰/추론 effort/요청 제한 시간/선택적 비교용 토큰 단가를 관리한다. 라우터 모델이 None이면
+  판단 모델을 따른다. 기본 reasoning=none일 때 temperature=0을 사용한다.
+- 구조화 출력: 기존 루트 anyOf를 OpenAI가 허용하는 result object로 감싸고 $defs 참조를
+  유지한다. 응답에서 result를 풀어 기존 AgentDecision 검증/엔진 접수로 넘긴다. 잘림/거절/
+  HTTP 오류는 실패로 전달하며 다른 모델로 자동 fallback하지 않는다.
+- server/GameService/demo: openai 실행 모드를 추가하고 기존 공용 MCP 수명을 재사용한다.
+  health의 llm_model/llm_router_model은 실제 선택 모델이다. 화면은 이 모델명을 우선 표시한다.
+- experiments: --backend openai, 사전 모델 접근 점검, 동일 조건/시간/입출력 로그를 지원한다.
+  RAG 임베딩은 기존 Ollama embeddinggemma를 유지한다.
+
+설정과 연결 예시는 agents/LLM_BACKENDS.md 및 .env.example에 작성했다. 서버/데모는 기존처럼
+fake가 기본이고, 실모델 모드는 LLM_BACKEND/--mode로 명시한다. 실험의 기본 공급자는 config를 따른다.
+
+실제 GPT-6 Luna 검증: 실험 1단계 no_information 한 건이 그래프/메모/접수를 통과했다
+(실행 ID 20261021T040020-d1ab91ee). 인간 발언의 chat/game 의도 JSON 해석, SSE delta/완료/
+usage도 확인했다. 임시 저장소에서 두 실제 모델 에이전트가 한 라운드를 대화·체크·공개·정산·회고까지
+완료했다. 테스트 원문/키를 일반 문서에 복사하지 않고 연결 검증 범위만 기록한다.
+
+회귀 검증: Python 114개 중 113개 통과. 나머지 하나는 이미 구현된 graph_practice가
+NotImplementedError를 던진다고 가정하는 기존 검사이며 연습 파일은 변경하지 않았다.
+프런트 25개 검사와 Vue SFC 렌더링, production build 및 git diff --check를 통과했다.

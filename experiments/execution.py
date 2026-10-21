@@ -89,8 +89,8 @@ async def run_trial(recorder, case, condition, trial_id, rows, unrelated, proven
     async with memory_connection(game, recorder.config.backend, recorder, trial_id, evidence) as client:
         async with asyncio.timeout(recorder.config.index_timeout):
             await prepare_tools(table, client, recorder, trial_id, initial_memos,
-                                index=search and stage != 1 and recorder.config.backend == 'ollama',
-                                timeout=recorder.config.index_timeout)
+                                index=search and stage != 1 and recorder.config.backend != 'fake',
+                            timeout=recorder.config.index_timeout)
         gate = ToolGate(client, recorder, trial_id, read_memos=memos_on, write_memos=stage == 1 or memos_on)
         graph = make_graph(table, gate, recorder, trial_id, search_enabled=search,
                            fixed_research=evidence if search and stage == 1 else None)

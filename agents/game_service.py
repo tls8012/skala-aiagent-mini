@@ -7,6 +7,7 @@ import logging
 import secrets
 
 from .config import GameConfig
+from agent.llm_controller import configure_backend
 from .demo import ScriptedPokerLLM, ScriptedSpeechInterpreter
 from .graph import build_graph
 from .player_llm import PlayerLLM
@@ -75,6 +76,7 @@ class EventJournal:
 
 class GameSession:
     def __init__(self, table: Table, backend: str, mcp=None):
+        table.config = configure_backend(table.config, backend)
         self.table = table
         self.backend = backend
         self.mcp = mcp
@@ -90,7 +92,7 @@ class GameSession:
         for pid, player in table.players.items():
             if player.kind == 'ai':
                 backends[pid] = (PokerLLM(table, mcp, pid, PlayerLLM(table, mcp, pid))
-                                 if backend == 'ollama' else ScriptedPokerLLM(table, None, pid, None))
+                                 if backend != 'fake' else ScriptedPokerLLM(table, None, pid, None))
         self.runner = RoundRunner(table, {pid: build_graph(llm) for pid, llm in backends.items()},
                                   on_event=self._publish_event,
                                   interpreter=ScriptedSpeechInterpreter() if backend == 'fake' else None)
@@ -216,10 +218,9 @@ class GameSession:
 
 class GameService:
     def __init__(self, config: GameConfig, backend: str = 'fake', mcp=None):
-        if backend not in {'fake', 'ollama'}:
-            raise ValueError('LLM_BACKEND must be fake or ollama')
-        if backend == 'ollama' and mcp is None:
-            raise ValueError('ollama backend requires a connected MCP client')
+        config = configure_backend(config, backend)
+        if backend != 'fake' and mcp is None:
+            raise ValueError(f'{backend} backend requires a connected MCP client')
         self.config, self.backend, self.mcp = config, backend, mcp
         self._games: dict[str, GameSession] = {}
 

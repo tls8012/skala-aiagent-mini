@@ -136,7 +136,7 @@ export function useGameSession({ api = defaultApi, subscribe = subscribeGameEven
       const result = await api.checkHealth();
       const details = result.backend?.details || result;
       health.status = result.status === 'ok' ? 'ok' : 'error';
-      health.backend = details.llm_backend || null; health.model = details.ollama_model || null;
+      health.backend = details.llm_backend || null; health.model = details.llm_model || details.ollama_model || null;
     } catch (failure) { health.status = 'error'; health.error = failure.message; }
   }
   async function initialize() {

@@ -8,7 +8,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from agent.mcp_client import MCPClient
-from agent.ollama_client import OllamaLLM
+from agent.llm_controller import create_llm
 from agents.config import export_mcp_config
 from agents.graph import build_graph
 from agents.mcp_server import GameTools
@@ -53,7 +53,7 @@ class RecordingClient:
         try:
             self.recorder.emit('model_calls', event='request', trial_id=self.trial_id, call_id=call_id,
                                model=self.name, system=system, user=user, schema=schema)
-            with self.recorder.span('model', 'ollama_complete', trial_id=self.trial_id, call_id=call_id):
+            with self.recorder.span('model', 'llm_complete', trial_id=self.trial_id, call_id=call_id):
                 content, usage = self.client.complete(system, user, schema=schema)
             self.recorder.emit('model_calls', event='response', trial_id=self.trial_id,
                                call_id=call_id, content=content, usage=usage)
@@ -187,9 +187,7 @@ class ObservedGraph:
 
 def make_graph(table, gate, recorder, trial_id, *, search_enabled, fixed_research=None):
     config = table.config
-    client = (SmokeClient() if recorder.config.backend == 'fake' else OllamaLLM(
-        config.ollama_model, config.ollama_usd_per_1k_tokens,
-        think=config.ollama_think, num_predict=config.ollama_num_predict))
+    client = SmokeClient() if recorder.config.backend == 'fake' else create_llm(config)
     player = PlayerLLM(table, gate, 'A', RecordingClient(client, recorder, trial_id))
     backend = ExperimentPokerLLM(table, gate, 'A', player, search_enabled=search_enabled,
                                 fixed_research=fixed_research, recorder=recorder, trial_id=trial_id)

@@ -1,6 +1,6 @@
 """게임 그래프의 LLM 진입점. 매 호출에 세 개인 메모를 자동으로 첨부한다."""
 import asyncio
-from agent.ollama_client import OllamaLLM
+from agent.llm_controller import create_llm
 
 
 class PlayerLLM:
@@ -10,9 +10,7 @@ class PlayerLLM:
         self.table = table
         self.mcp = mcp
         self.player_id = player_id
-        self.client = client if client is not None else OllamaLLM(
-            table.config.ollama_model, table.config.ollama_usd_per_1k_tokens,
-            think=table.config.ollama_think, num_predict=table.config.ollama_num_predict)
+        self.client = client if client is not None else create_llm(table.config)
 
     @property
     def name(self) -> str:

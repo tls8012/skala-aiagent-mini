@@ -378,6 +378,13 @@ C 상대는 대기→강제 check→C check로 종료했다.
 지시 준수와 카드 추론의 정확성을 계속 구분해야 한다. 이번 확인에서 실행 로직이나
 활성 지시문을 추가 수정하지 않았다.
 
+### OpenAI 비교 실행 전 지시문 복원
+
+poker_action_selection.txt를 poker_action_selection_standard.txt와 동일한 내용으로 복원했다.
+강제 행동 체크 진단은 poker_action_selection_check_forced.txt로 보존했고, 즉시 체크 진단도
+기존 check_immediate.txt 보관본을 유지했다. 모델 비교에는 스탠다드 지시문을 사용한다.
+이번 복원에서 백엔드 설정을 변경하거나 모델 실험을 실행하지 않았다.
+
 ## 구현 및 시간 로깅
 
 기존 Table/Betting/Round/그래프/PlayerLLM/OllamaLLM/MCPClient를 재사용했다.
@@ -433,3 +440,40 @@ openai_model(기본 gpt-6-luna)을 사용한다. 기존 조건/엔진/메모/시
 OpenAI Responses의 result wrapper는 통신 어댑터에서 풀어 기존 결정 계약으로 반환한다.
 API 키/요청 헤더는 config나 실험 로그에 저장하지 않는다. 실제 토큰은 usage에 남기며
 청구 금액을 알 수 없는 기본 usd는 None이다.
+
+## OpenAI 스탠다드 실행 검토 — 20261021T081635-76bb44b5
+
+3단계 B/C 각 1사례 × control/both, 4/4 정상 완료했다. manifest의 backend=openai,
+model=gpt-6-luna, provider_model_id=gpt-6-luna가 일치한다. model_calls 요청 20건의
+model은 모두 openai:gpt-6-luna, 응답 usage.actual_model 20건은 모두 gpt-6-luna였다.
+활성 행동 지시문과 보관된 스탠다드의 manifest 해시도 같았다. 진단 지시문을 쓴 실행이 아니다.
+
+전체 58.931초, LLM 20회(판단 16/회고 4), 모델 왕복 평균 2.560초/p95 3.591초였다.
+토큰은 입력 47,967 + 출력 2,042 = 총 50,009이며 누락·HTTP 오류·JSON 재시도는 없었다.
+판단 16건의 force_bet는 모두 false였다. 이번 실행은 일반 판단에서 행동해 강제 경로까지
+진행하지 않았으므로 GPT의 강제 행동 입력에 대한 별도 검증으로 해석하지 않는다.
+
+| 상대/조건 | A의 실제 행동 | 승자 | A 칩 변화 |
+|---|---|---|---|
+| B / control | check → call | A | +6 |
+| B / both | check → fold | B | −2 |
+| C / control | check | A | +2 |
+| C / both | check | A | +2 |
+
+A의 확정 행동은 check 4/call 1/fold 1/raise 0이며 automatic 표시는 없었다.
+같은 스탠다드 지시문을 사용한 Qwen 10사례 실행 중 동일 trial_id 4개에서는 A의 실제 행동
+8회가 모두 raise였다. 같은 사례의 input_hash가 일치한다. 다만 공급자별 구조화 출력 처리,
+출력 한도와 추론 설정도 다르므로 이 4라운드를 순수한 모델 지능/일반 성능 비교로 단정하지 않는다.
+현재 표본에서는 공통 엔진이 모든 모델에게 레이즈를 강요한다는 설명보다 모델/백엔드별
+자유 판단 차이와 일치하는 관찰이다. 검색+메모의 개선 효과도 이 표본에서 확인되지 않았다.
+
+근거 활용에는 반례가 남아 있다. C/both의 실제 검색 발언 세 건은 모두 “네 카드는 10 이하야”이고
+같은 과거 라운드의 A 공개 카드는 7/7/4라서 세 건 모두 일치한다. 모델은 1/3만 일치한다고
+메모에 썼다. 같은 기록의 C 카드 12/5/12를 세면 1/3이므로 대상 카드 소유자를 혼동했을
+가능성이 있다. B/both에서도 처음 자료의 A 카드 6/12/5를 1/3 일치라고 잘못 썼지만,
+콜 판단 시 바뀐 자료 A=11/6/12는 1/3 일치로 올바르게 집계했다. 잘못된 앞선 집계가
+최종 폴드의 원인이라고 단정하지 않는다. B/control의 공개 발언/메모는 일본어로 출력돼
+한국어 지시 준수에도 예외가 있었다. 근거 점수의 전수 수동 평가는 아직 하지 않았다.
+
+실제 모델 선택 확인은 manifest와 model_calls의 요청/응답 모델명을 함께 사용했다.
+이번 검토에서 config/프롬프트/게임 코드를 변경하거나 추가 모델 요청을 실행하지 않았다.

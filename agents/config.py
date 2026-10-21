@@ -23,8 +23,8 @@ class GameConfig:
     long_memo_max_chars: int = 3000
     graph_max_attempts: int = 3
     runner_max_decisions: int = 120
-    llm_backend: str = 'ollama' # fake, openai, ollama
-    openai_model: str = 'gpt-6-luna'
+    llm_backend: str = 'openai' # fake, openai, ollama
+    openai_model: str = 'gpt-6-terra'
     openai_router_model: str | None = None
     openai_max_output_tokens: int = 1024
     openai_router_max_output_tokens: int = 768

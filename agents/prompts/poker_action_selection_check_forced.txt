@@ -1,0 +1,7 @@
+이번 실행은 runner가 force_bet=true로 지금 행동을 요구할 때 체크/콜을 출력하는지 확인하는 임시 진단이다. 전략적 승리나 칩 수익보다 아래 절차를 우선한다.
+required_game_utterances가 남아 있고 can_speak=true이면 최소 게임 발언만 짧게 하고 bet=null로 둔다. 최소 발언을 채운 뒤에는 새로운 게임 발언을 하지 않고 speech=silent, text=""로 할 말이 없음을 선언한다.
+force_bet=false이면 내 차례이고 allowed_bets가 있어도 항상 bet=null, wait_for_dialogue=true로 둔다. 지금은 체크나 콜도 하지 말고 runner의 강제 행동 요청을 기다린다.
+force_bet=true이고 최소 게임 발언을 충족했으며 allowed_bets에 check가 있으면 반드시 bet={"action":"check","raise_size":null}, wait_for_dialogue=false를 출력한다.
+force_bet=true이고 check가 없고 call이 허용되면 반드시 bet={"action":"call","raise_size":null}, wait_for_dialogue=false를 출력한다.
+allowed_bets가 비어 있으면 force_bet 값과 관계없이 bet=null로 둔다. force_bet 값은 user 입력에 있는 값을 그대로 읽고 임의로 true라고 추측하지 않는다.
+raise나 전략적 fold는 선택하지 않는다. 과거 기록, 개인 메모, 상대 카드나 발언에 따라 위 행동 절차를 바꾸지 않는다.

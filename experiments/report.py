@@ -12,6 +12,10 @@ def read_rows(root, stream):
     return [json.loads(line) for line in path.read_text().splitlines() if line.strip()] if path.exists() else []
 
 
+def card_name(card):
+    return str({11: 'J', 12: 'Q', 13: 'K', 14: 'A'}.get(card['rank'], card['rank'])) + card['suit']
+
+
 def stage4_review(root, trials):
     """평가 정답과 실제 출력을 함께 제시하되 자유 서술의 의미 평가는 자동 채점하지 않는다."""
     path = root / 'stage4_review.csv'
@@ -77,11 +81,15 @@ def summarize(root):
                 actions[event['event']['action']] += 1
         calls = [r for r in model_rows if r['trial_id'] in ids]
         normal = [r['chip_delta'] for r in valid if 'chip_delta' in r]
+        valid_rounds = [r for r in valid if 'winner' in r and 'chip_delta' in r]
+        valid_wins = sum(r['winner'] == 'A' for r in valid_rounds)
         stats.append({'condition': condition, 'opponent': opponent, 'attempted': len(rows),
                       'valid': len(valid), 'invalid': len(rows)-len(valid),
                       'completed_rounds': len(deltas), 'mean_chip_delta_with_fallbacks': statistics.mean(deltas) if deltas else None,
                       'mean_chip_delta_valid': statistics.mean(normal) if normal else None,
                       'round_wins': sum(r.get('winner') == 'A' for r in rows), 'actions': dict(actions),
+                      'completed_rounds_valid': len(valid_rounds), 'round_wins_valid': valid_wins,
+                      'win_rate_valid': valid_wins/len(valid_rounds) if valid_rounds else None,
                       'model_requests': sum(r['event'] == 'request' for r in calls),
                       'tokens': sum(r.get('usage', {}).get('tokens', 0) for r in calls)})
     paired = []
@@ -104,7 +112,9 @@ def summarize(root):
                            'effective_bet_changed': (before['action'], before['actual_increment']) != (after['action'], after['actual_increment'])
                            if valid_pair and before is not None and after is not None else None,
                            'chip_delta_difference': row['chip_delta']-baseline['chip_delta']
-                           if 'chip_delta' in row and 'chip_delta' in baseline else None})
+                           if 'chip_delta' in row and 'chip_delta' in baseline else None,
+                           'winner_changed': row['winner'] != baseline['winner']
+                           if valid_pair and 'winner' in row and 'winner' in baseline else None})
     contrasts = defaultdict(list)
     for pair in paired:
         contrasts[(pair['baseline'], pair['condition'], pair['opponent'])].append(pair)
@@ -113,9 +123,11 @@ def summarize(root):
         bets = [p for p in pairs if p['effective_bet_changed'] is not None]
         deltas = [p['chip_delta_difference'] for p in pairs if p['chip_delta_difference'] is not None]
         valid_deltas = [p['chip_delta_difference'] for p in pairs if p['valid_pair'] and p['chip_delta_difference'] is not None]
+        round_pairs = [p for p in pairs if p['winner_changed'] is not None]
         comparisons.append({'baseline': baseline, 'condition': condition, 'opponent': opponent,
                             'pairs': len(pairs), 'valid_pairs': sum(p['valid_pair'] for p in pairs),
                             'decision_pairs': len(bets), 'effective_bet_changes': sum(p['effective_bet_changed'] for p in bets),
+                            'round_pairs': len(round_pairs), 'winner_changes': sum(p['winner_changed'] for p in round_pairs),
                             'mean_chip_difference_with_fallbacks': statistics.mean(deltas) if deltas else None,
                             'mean_chip_difference_valid': statistics.mean(valid_deltas) if valid_deltas else None})
     summary = {'backend': manifest['backend'], 'evidence_run': manifest['evidence_run'],
@@ -126,6 +138,8 @@ def summarize(root):
     if manifest['config']['stage'] == 4:
         summary['protocol'] = manifest.get('protocol')
         stage4_review(root, trials)
+    elif manifest['config']['stage'] == 3:
+        summary['protocol'] = manifest.get('protocol')
     (root / 'summary.json').write_text(json.dumps(summary, ensure_ascii=False, indent=2))
     with (root/'timings.csv').open('w', newline='', encoding='utf-8') as handle:
         fields = ['trial_id', 'decision_id', 'kind', 'name', 'call_id', 'started_offset_s', 'duration_s', 'status', 'error']
@@ -169,6 +183,19 @@ def summarize(root):
              '## 조건별 결과', '', '| 조건 | 상대 | 유효/시도 | 평균 칩 변화(자동 대체 포함) |', '|---|---|---|---|']
     for row in stats:
         lines.append(f"| {row['condition']} | {row['opponent']} | {row['valid']}/{row['attempted']} | {row['mean_chip_delta_with_fallbacks']} |")
+    if manifest['config']['stage'] == 3:
+        lines += ['', '## 승률과 칩 손익', '',
+                  '정상 완료 라운드만의 승률과 평균 손익이다. 실패 후 자동 대체를 포함한 평균은 위 표와 구분한다.', '',
+                  '| 상대 | 조건 | 정상 완료 | A 승리 | A 승률 | 평균 칩 손익 |', '|---|---|---|---|---|---|']
+        for row in stats:
+            rate = f"{row['win_rate_valid']:.1%}" if row['win_rate_valid'] is not None else '미측정'
+            lines.append(f"| {row['opponent']} | {row['condition']} | {row['completed_rounds_valid']} | {row['round_wins_valid']} | {rate} | {row['mean_chip_delta_valid']} |")
+        if (manifest.get('protocol') or {}).get('name') == 'fixed_deal_heads_up':
+            lines += ['', '### 배패별 승패와 손익', '', 'A 비공개 카드는 평가자용이며 공개 전에는 모델에 주지 않는다.', '',
+                      '| 사례 | A 비공개 | 상대 카드 | 조건 | 승자 | A 칩 손익 | 정상 완료 |', '|---|---|---|---|---|---|---|']
+            for trial in sorted(trials, key=lambda t: (t['case_id'], t['condition'])):
+                if 'deal' in trial:
+                    lines.append(f"| {trial['case_id']} | {card_name(trial['deal']['A'])} | {card_name(trial['deal'][trial['opponent']])} | {trial['condition']} | {trial.get('winner', '-')} | {trial.get('chip_delta', '-')} | {trial['valid']} |")
     if manifest['config']['stage'] == 4:
         distinct_deals = (manifest.get('protocol') or {}).get('unit') == 'distinct_deal'
         scope = ('cases는 서로 다른 배패 수다. 같은 배패 안에서만 자료 조건을 대응 비교한다.'
@@ -183,8 +210,6 @@ def summarize(root):
         if distinct_deals:
             lines += ['', '### 배패별 행동', '', 'A 카드는 평가자용 비공개 배패이며 모델에는 주지 않는다.', '',
                       '| 사례 | A 비공개 | B 관찰 카드 | 조건 | 접수 행동 |', '|---|---|---|---|---|']
-            def card_name(card):
-                return str({11: 'J', 12: 'Q', 13: 'K', 14: 'A'}.get(card['rank'], card['rank'])) + card['suit']
             for trial in sorted(trials, key=lambda t: (t['case_id'], t['condition'])):
                 if 'deal' not in trial:
                     continue
@@ -193,9 +218,14 @@ def summarize(root):
                 if action == 'raise':
                     action += f" +{signature['actual_increment']}"
                 lines.append(f"| {trial['case_id']} | {card_name(trial['deal']['A'])} | {card_name(trial['deal']['B'])} | {trial['condition']} | {action} |")
-    lines += ['', '## 대응 비교', '', '| 조건 − 기준 | 상대 | 유효/대응 수 | 실제 베팅 변화/판단 쌍 | 평균 칩 차이(자동 대체 포함) |', '|---|---|---|---|---|']
-    for row in comparisons:
-        lines.append(f"| {row['condition']} − {row['baseline']} | {row['opponent']} | {row['valid_pairs']}/{row['pairs']} | {row['effective_bet_changes']}/{row['decision_pairs']} | {row['mean_chip_difference_with_fallbacks']} |")
+    if manifest['config']['stage'] == 3:
+        lines += ['', '## 대응 비교', '', '| 조건 − 기준 | 상대 | 유효/대응 수 | 승자 변경/정상 라운드 쌍 | 평균 칩 차이(정상 쌍) |', '|---|---|---|---|---|']
+        for row in comparisons:
+            lines.append(f"| {row['condition']} − {row['baseline']} | {row['opponent']} | {row['valid_pairs']}/{row['pairs']} | {row['winner_changes']}/{row['round_pairs']} | {row['mean_chip_difference_valid']} |")
+    else:
+        lines += ['', '## 대응 비교', '', '| 조건 − 기준 | 상대 | 유효/대응 수 | 실제 베팅 변화/판단 쌍 | 평균 칩 차이(자동 대체 포함) |', '|---|---|---|---|---|']
+        for row in comparisons:
+            lines.append(f"| {row['condition']} − {row['baseline']} | {row['opponent']} | {row['valid_pairs']}/{row['pairs']} | {row['effective_bet_changes']}/{row['decision_pairs']} | {row['mean_chip_difference_with_fallbacks']} |")
     lines += ['', '## 구간별 시간', '', '| 종류 | 구간 | 횟수 | 평균 s | p95 s | 합계 s |', '|---|---|---|---|---|---|']
     for row in sorted(timing_summary, key=lambda r: r['mean_s'], reverse=True):
         lines.append(f"| {row['kind']} | {row['name']} | {row['count']} | {row['mean_s']:.4f} | {row['p95_s']:.4f} | {row['total_s']:.4f} |")

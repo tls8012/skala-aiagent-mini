@@ -10,6 +10,7 @@ from agents.models import Bet, PlayerCommand
 from agents.table import Table
 from .common import digest, ObservedTable
 from .opponents import FixedPolicy
+from .deals import deal_cards
 
 FAMILIES = ('BLUFF', 'TRUTH', 'AGGRESSION', 'CONSERVATIVE', 'LIMITED')
 
@@ -29,8 +30,8 @@ def scenarios(stage, count, seed, opponent=None):
             for i in range(count)]
 
 
-def command(table, pid, kind, **extra):
-    result = table.submit(pid, PlayerCommand(request_id=uuid4().hex, round_id=table.round.number,
+def command(table, pid, kind, *, request_id=None, **extra):
+    result = table.submit(pid, PlayerCommand(request_id=request_id or uuid4().hex, round_id=table.round.number,
                            basis_event=table.event_id, kind=kind, **extra))
     if result.status != 'accepted':
         raise ValueError(f'fixture command failed: {result}')
@@ -38,12 +39,13 @@ def command(table, pid, kind, **extra):
 
 
 def build_table(config, case, game_id, *, stage, recorder=None, trial_id=None):
-    # 3단계에서는 30개 기준 15/15 선행. 카드의 사람별 배정은 순서와 무관하다.
+    # 3단계에서는 10개 기준 5/5 선행. 카드의 사람별 배정은 순서와 무관하다.
     order = (['A', case.opponent] if case.index % 2 == 0 else [case.opponent, 'A']) if stage == 3 else [case.opponent, 'A']
     table = (ObservedTable(order, config=config, game_id=game_id, recorder=recorder, trial_id=trial_id)
              if recorder else Table(order, config=config, game_id=game_id))
-    cards = Deck(random.Random(case.seed)).deal(2)
-    table.start_round({'A': cards[0], case.opponent: cards[1]})
+    cards = (deal_cards(case) if stage == 3 else
+             dict(zip(('A', case.opponent), Deck(random.Random(case.seed)).deal(2))))
+    table.start_round(cards)
     if stage != 3:
         command(table, 'A', 'speak', text='이번 주장을 듣고 판단하겠어.')
         claim = '네 카드는 10 이하야.' if case.opponent == 'B' else '네 카드는 J 이상이야.'
@@ -55,9 +57,12 @@ def build_table(config, case, game_id, *, stage, recorder=None, trial_id=None):
     return table
 
 
-def history_bank(config, case, *, stage):
+def history_bank(config, case, *, stage, deterministic_ids=False):
     """과거는 별도 seed의 완료 라운드. 공개 export의 라운드 ID만 데이터셋 순번으로 정규화한다."""
     rows, provenance = [], []
+    def submit(table, pid, kind, **extra):
+        request_id = f'history-{table.round.number}-{table.event_id}-{pid}' if deterministic_ids else None
+        return command(table, pid, kind, request_id=request_id, **extra)
     for i in range(20):
         pid = case.opponent
         if stage != 3 and case.family == 'LIMITED' and i > 0:
@@ -75,14 +80,14 @@ def history_bank(config, case, *, stage):
         style = 'defensive' if pid == 'C' else 'aggressive'
         policy = FixedPolicy(pid, style, case.seed+100000, f'bank-{i}')
         reference = FixedPolicy('A', 'reference', 0, f'bank-{i}')
-        command(table, 'A', 'speak', text='일단 공개 결과까지 보자.')
+        submit(table, 'A', 'speak', text='일단 공개 결과까지 보자.')
         first = policy.decide(table.observe(pid))
-        command(table, pid, 'speak', text=first.text)
+        submit(table, pid, 'speak', text=first.text)
         while table.round.phase == 'dialogue':
             actor = table.round.betting.turn
             decision = (reference if actor == 'A' else policy).decide(table.observe(actor))
             before = table.event_id
-            command(table, actor, 'bet', bet=decision.bet)
+            submit(table, actor, 'bet', bet=decision.bet)
             for event in table.events_since(before):
                 policy.on_event(event)
         record = json.loads(next(table.archive_dir.glob('round_*.json')).read_text())

@@ -140,7 +140,7 @@ class Stage4Tests(unittest.IsolatedAsyncioTestCase):
     def test_stage4_rejects_other_stage_condition_names(self):
         self.assertEqual(ExperimentConfig(stage=4).arms, TRUST_CONDITIONS)
         self.assertEqual(ExperimentConfig(stage=4).cases, 10)
-        self.assertEqual(ExperimentConfig(stage=3).cases, 30)
+        self.assertEqual(ExperimentConfig(stage=3).cases, 10)
         with self.assertRaises(ValueError):
             ExperimentConfig(stage=4, cases=11)
         for condition in ('both', 'search_only', 'relevant_history'):

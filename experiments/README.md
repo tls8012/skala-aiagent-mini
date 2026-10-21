@@ -14,10 +14,10 @@
 # 먼저 모델 호출 없이 엔진/그래프/로그 배선 확인
 .venv/bin/python -m experiments.run --stage 1 --cases 1 --backend fake
 
-# 실제 모델 실험: 같은 30개 상황을 각 조건에 대응시킨다
+# 실제 모델 실험: 단계별 고정 상황을 각 조건에 대응시킨다
 .venv/bin/python -m experiments.run --stage 1 --cases 30
 .venv/bin/python -m experiments.run --stage 2 --cases 30
-.venv/bin/python -m experiments.run --stage 3 --cases 30
+.venv/bin/python -m experiments.run --stage 3 --cases 10
 
 # 배패 10개 각각에서 과거의 진위를 바꾸는 진단: 10개 × 3조건 = 30개 판단
 .venv/bin/python -m experiments.run --stage 4 --cases 10
@@ -31,8 +31,9 @@
 
 기본 backend는 GameConfig.llm_backend다. `--backend fake`에서는 실제 그래프/게임 엔진/파일 메모는 사용하지만
 모델과 검색 결과는 smoke용 응답이다. manifest의 evidence_run=false로 구분하며 성능 근거로 쓰지 않는다.
-1~3단계 cases는 1..30, 기본 30이다. 1단계 3조건, 2단계 4조건, 3단계 상대별 2조건이 기본이다.
-4단계 cases는 1..10, 기본 10으로 서로 다른 배패 수이며 세 조건에서 비교한다.
+1~2단계 cases는 1..30, 기본 30이다. 1단계 3조건, 2단계 4조건이 기본이다.
+3~4단계 cases는 1..10, 기본 10으로 서로 다른 배패 수다. 3단계는 상대 B/C 각각 두 조건으로
+총 40라운드, 4단계는 세 조건으로 총 30개 판단이다. 3단계는 상대별 과거 20판의 내용도 고정한다.
 검색/임베딩 없이 고정 자료를 직접 주입하고,
 사전 메모 입력은 끄되 출력 메모는 저장한다. 완료 라운드나 승률을 측정하지 않는다.
 `--conditions`에 해당 단계의 이름을 여러 개 넘기면 일부 조건만 실행한다.
@@ -130,6 +131,7 @@ heads-up을 위해 엔진 인원 제한을 바꾸거나 가짜 세 번째 참가
 | run.py | CLI, 모델 확인, 단계 선택과 보고서 생성 |
 | common.py | ExperimentConfig, RunRecorder, NodeTimingHandler, ObservedTable. JSONL/시간/행동 접수 관찰 |
 | fixtures.py | Scenario/scenarios(), build_table(), history_bank(), memoir(). 실제 엔진으로 고정 상황/과거 자료 생성 |
+| deals.py | 3·4단계 공통 배패 10개. A 비공개 카드와 상대 관찰 카드를 평가자용으로 지정 |
 | backends.py | ExperimentPokerLLM, ToolGate, RecordingClient, ObservedGraph. 조건 제어와 관찰 |
 | execution.py | run_cases()/run_trial(). 조건별 격리/검색 준비/판단 또는 라운드 실행과 실패 수집 |
 | stage4.py | 고정 결정 장면/완료 과거 자료/직접 주입/평가용 정답과 4단계 진입점 |

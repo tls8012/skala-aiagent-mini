@@ -47,10 +47,10 @@ class ExperimentConfig:
 
     def __post_init__(self):
         if self.cases is None:
-            object.__setattr__(self, 'cases', 10 if self.stage == 4 else 30)
+            object.__setattr__(self, 'cases', 10 if self.stage in (3, 4) else 30)
         if self.stage not in (1, 2, 3, 4):
             raise ValueError('stage=1..4')
-        maximum = 10 if self.stage == 4 else 30
+        maximum = 10 if self.stage in (3, 4) else 30
         if type(self.cases) is not int or not 1 <= self.cases <= maximum:
             raise ValueError(f'stage {self.stage}: cases=1..{maximum}')
         if self.backend not in GAME_BACKENDS or self.timeout <= 0 or self.index_timeout <= 0:

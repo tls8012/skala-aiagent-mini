@@ -13,7 +13,7 @@ from .backends import ToolGate, make_graph, memory_connection, prepare_tools
 from .common import CONDITIONS, digest, plain
 from .fixtures import build_table, fixed_evidence, history_bank, input_hash, memoir
 from .opponents import FixedPolicy
-from . import stage4
+from . import stage3, stage4
 
 
 async def run_cases(recorder, cases):
@@ -25,11 +25,16 @@ async def run_cases(recorder, cases):
         bank_key = 'trust-probe' if config.stage == 4 else case.opponent if config.stage == 3 else case.case_id
         if bank_key not in banks:
             with recorder.span('preparation', 'history_bank', case_id=case.case_id):
-                bank_case = replace(case, seed=config.seed+30000, case_id=f'bank-{case.opponent}', index=0) if config.stage == 3 else case
+                bank_case = replace(case, seed=stage3.HISTORY_SEED, case_id=f'bank-{case.opponent}', index=0) if config.stage == 3 else case
                 if config.stage == 4:
                     rows, provenance = stage4.history_bank(recorder.game_config('fixture-' + bank_key))
                 else:
-                    rows, provenance = history_bank(recorder.game_config('fixture-' + bank_key), bank_case, stage=config.stage)
+                    rows, provenance = history_bank(recorder.game_config('fixture-' + bank_key), bank_case,
+                                                    stage=config.stage, deterministic_ids=config.stage == 3)
+                if config.stage == 3:
+                    recorder.manifest.setdefault('history_banks', {})[case.opponent] = {
+                        'rounds': len(rows), 'hash': digest(rows), 'history_seed': stage3.HISTORY_SEED}
+                    recorder.save_manifest()
                 unrelated = None
                 if config.stage == 1:
                     other = replace(case, opponent='D', family='AGGRESSION')
@@ -66,10 +71,12 @@ async def run_trial(recorder, case, condition, trial_id, rows, unrelated, proven
     if stage == 4:
         game = stage4.game_settings(game)
         table = stage4.build_table(game, case, recorder=recorder, trial_id=trial_id)
-        # 평가 로그 전용. 현재 A 카드는 observation/LLM 입력에 넣지 않는다.
-        result['deal'] = {pid: card.to_dict() for pid, card in stage4.deal_cards(case).items()}
     else:
-        table = build_table(game, case, 'eval-' + trial_id, stage=stage, recorder=recorder, trial_id=trial_id)
+        game_id = 'eval-' + (case.case_id if stage == 3 else trial_id)
+        table = build_table(game, case, game_id, stage=stage, recorder=recorder, trial_id=trial_id)
+    if stage in (3, 4):
+        # 평가 로그 전용. 현재 A 카드는 observation/LLM 입력에 넣지 않는다.
+        result['deal'] = {pid: card.to_dict() for pid, card in table.round.cards.items()}
     result['input_hash'] = input_hash(table)
     comparison_key = case.case_id
     if comparison_key in expected and expected[comparison_key] != result['input_hash']:
@@ -105,6 +112,7 @@ async def run_trial(recorder, case, condition, trial_id, rows, unrelated, proven
         evidence['matches'] = evidence['matches'][:len(fixed_evidence(rows, case.opponent)['matches'])]
     result['evidence_hash'] = digest(evidence)
     initial_memos = memoir(rows, case.opponent) if memos_on else dict.fromkeys(('round', 'game', 'long'), '')
+    result['memo_input_hash'] = digest(initial_memos)
     async with memory_connection(game, recorder.config.backend, recorder, trial_id, evidence) as client:
         async with asyncio.timeout(recorder.config.index_timeout):
             await prepare_tools(table, client, recorder, trial_id, initial_memos,

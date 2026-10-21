@@ -12,6 +12,7 @@ from agents.models import Bet, PlayerCommand
 from agents.table import Table
 from .common import ObservedTable, TRUST_CONDITIONS, digest
 from .fixtures import Scenario
+from .deals import FIXED_DEALS as DEALS, deal_cards
 
 CLAIM = '네 카드는 10 이하야.'
 HISTORY_RANKS = {
@@ -19,31 +20,12 @@ HISTORY_RANKS = {
     'trustworthy_history': (3, 4, 5),
     'deceptive_history': (11, 12, 13),
 }
-# (비공개 A 카드, A가 관찰하는 B 카드). 01은 첫 실행과 같은 배패다.
-# 숫자 강도와 문양 동률, 2/A의 예외를 포함하고, 관찰 가능한 B 카드도 모두 다르게 한다.
-DEALS = (
-    (Card(10, 'H'), Card(9, 'C')),
-    (Card(14, 'H'), Card(2, 'S')),
-    (Card(2, 'C'), Card(14, 'H')),
-    (Card(13, 'S'), Card(13, 'D')),
-    (Card(9, 'S'), Card(10, 'C')),
-    (Card(12, 'D'), Card(11, 'H')),
-    (Card(11, 'H'), Card(12, 'S')),
-    (Card(4, 'C'), Card(3, 'D')),
-    (Card(5, 'S'), Card(5, 'H')),
-    (Card(6, 'D'), Card(7, 'C')),
-)
 
 
 def scenarios(count, seed):
     if not 1 <= count <= len(DEALS):
         raise ValueError('stage4 cases must be 1..10 distinct deals')
     return [Scenario(f's4-TRUST-{i+1:02d}', 'TRUST', seed, 'B', i) for i in range(count)]
-
-
-def deal_cards(case):
-    own, opponent = DEALS[case.index]
-    return {'A': own, 'B': opponent}
 
 
 def game_settings(config):

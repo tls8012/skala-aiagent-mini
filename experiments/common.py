@@ -76,8 +76,10 @@ class RunRecorder:
                          'conditions': config.arms, 'model_digest': None,
                          'timing_scope': 'client wall clock; spans are inclusive and may overlap',
                          'ttft': 'unavailable: existing complete() returns a complete JSON response',
-                         'source_hashes': {str(p): digest(p.read_text()) for folder in ('agents', 'agent', 'experiments')
-                                           for p in sorted(Path(folder).glob('*.py'))}}
+                         'source_hashes': {str(p): digest(p.read_text()) for p in [
+                             *(p for folder in ('agents', 'agent', 'experiments', 'agents/prompts')
+                               for p in sorted(Path(folder).glob('*.py'))),
+                             *sorted(Path('agents/prompts').glob('*.txt'))]}}
         self.save_manifest()
 
     @staticmethod

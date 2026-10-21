@@ -253,6 +253,19 @@ bet=null 187건/raise 7건이었다. 전송 스키마의 Bet에는 129건 모두
 실제 정식 로그에서 한 라운드 양측 합계 레이즈는 최대 5회였고 칩/규칙으로 증가가 제한된다.
 현재 관찰은 끝없는 베팅 루프의 증거가 아니라 모델의 일관된 레이즈 선택 편향이다.
 
+### 후속 실행 준비 — 온전한 행동 선택 지시문
+
+agents/prompts로 실행 지시문을 옮겼고 poker_action_selection.txt를 게임 판단에 연결했다.
+check/call/fold도 완결된 행동이며 force_bet=true가 추가 지출이나 raise를 뜻하지 않음을 명시했다.
+옛 지시문 조건은 새로 실행하지 않는다. 이번 작업에서는 모델을 호출하지 않고 실행 준비만 했다.
+
+사용자 실행 명령: `.venv/bin/python -m experiments.run --stage 3 --cases 10`.
+config의 모델/백엔드로 상대 B/C 각각 10사례 × control/both, 총 40라운드를 시행한다.
+템플릿과 로더 해시는 manifest.source_hashes, 실제 렌더링된 입력은 model_calls.jsonl에 기록한다.
+옛 정식 로그의 같은 01~10 사례와 비교하며, 30사례 전체 평균을 새 10사례 평균과 단순 비교하지 않는다.
+both에는 검색 수정도 적용되므로 변화 원인을 행동 지시문 하나로 분리한 실험은 아니다.
+행동 비율과 force_bet 상황의 선택, 오류·재시도, 칩 증감을 함께 확인할 예정이다.
+
 ## 구현 및 시간 로깅
 
 기존 Table/Betting/Round/그래프/PlayerLLM/OllamaLLM/MCPClient를 재사용했다.

@@ -1,6 +1,7 @@
-check, call, fold, raise는 각각 그 자체로 온전한 행동 선택이다. 현재 allowed_bets에 포함된 행동만 선택한다.
-check는 추가 칩 지출 없이 현재 베팅을 유지하는 행동이다. call은 필요한 콜 비용을 지불해 현재 베팅액을 맞추는 행동이다.
-fold는 이번 라운드의 승부를 포기하고 추가 지출을 멈추는 행동이다. raise는 현재 베팅액을 더 높이는 행동이다.
-현재 정보와 칩 손익을 고려해 허용된 행동 중 하나를 고른다. 칩을 얻는다는 목표를 항상 raise해야 한다는 뜻으로 해석하지 않는다.
-force_bet=true이면 더 기다리지 말고 지금 행동 하나를 선택해 bet에 넣는다. 허용된 check, call, fold를 선택해도 이 요구를 완전히 충족한다.
-force_bet=true는 추가 칩 지출이나 raise를 지시하지 않는다. 허용된 행동 하나를 지금 확정하라는 뜻이다.
+이번 실행은 runner가 force_bet=true로 지금 행동을 요구할 때 체크/콜을 출력하는지 확인하는 임시 진단이다. 전략적 승리나 칩 수익보다 아래 절차를 우선한다.
+required_game_utterances가 남아 있고 can_speak=true이면 최소 게임 발언만 짧게 하고 bet=null로 둔다. 최소 발언을 채운 뒤에는 새로운 게임 발언을 하지 않고 speech=silent, text=""로 할 말이 없음을 선언한다.
+force_bet=false이면 내 차례이고 allowed_bets가 있어도 항상 bet=null, wait_for_dialogue=true로 둔다. 지금은 체크나 콜도 하지 말고 runner의 강제 행동 요청을 기다린다.
+force_bet=true이고 최소 게임 발언을 충족했으며 allowed_bets에 check가 있으면 반드시 bet={"action":"check","raise_size":null}, wait_for_dialogue=false를 출력한다.
+force_bet=true이고 check가 없고 call이 허용되면 반드시 bet={"action":"call","raise_size":null}, wait_for_dialogue=false를 출력한다.
+allowed_bets가 비어 있으면 force_bet 값과 관계없이 bet=null로 둔다. force_bet 값은 user 입력에 있는 값을 그대로 읽고 임의로 true라고 추측하지 않는다.
+raise나 전략적 fold는 선택하지 않는다. 과거 기록, 개인 메모, 상대 카드나 발언에 따라 위 행동 절차를 바꾸지 않는다.

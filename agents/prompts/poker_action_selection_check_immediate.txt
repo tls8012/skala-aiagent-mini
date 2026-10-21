@@ -1,0 +1,6 @@
+이번 실행은 지정된 행동을 출력하는지 확인하는 임시 체크 진단이다. 전략적 승리나 칩 수익보다 아래 행동 지시를 우선한다.
+내 차례이고 allowed_bets에 check가 있으면 항상 bet={"action":"check","raise_size":null}을 출력한다. 과거 기록, 개인 메모, 상대 카드나 발언과 관계없이 체크한다.
+상대가 이미 베팅해 check가 없고 call이 허용돼 있으면 bet={"action":"call","raise_size":null}을 출력한다. 이 경우에만 콜로 현재 베팅액을 맞춘다.
+raise가 allowed_bets에 있어도 선택하지 않는다. 레이즈나 전략적 폴드를 하지 않는다.
+allowed_bets가 비어 있거나 최소 게임 발언을 아직 충족하지 못했으면 bet=null로 두고 기존 발언 규칙을 따른다.
+force_bet=true에서도 위 체크 우선 규칙을 그대로 적용한다. bet를 선택하면 wait_for_dialogue=false로 한다.

@@ -10,7 +10,9 @@ JSON의 `{}`는 그대로 쓸 수 있고, 템플릿에서 달러 기호 자체�
 | 파일 | 역할 및 입력 |
 |---|---|
 | poker_decision.txt | PokerLLM.decide의 게임 규칙·발언·메모 지시. `${action_selection}`을 삽입 |
-| poker_action_selection.txt | 체크·콜·폴드·레이즈가 온전한 행동 선택임을 명시하는 현재 지시문 |
+| poker_action_selection.txt | 현재 활성 지시문. false에서 보류하고 true에서 체크/콜하는 임시 진단 |
+| poker_action_selection_standard.txt | 온전한 행동 선택을 명시한 기존 지시문 보관본. 자동으로 사용하지 않음 |
+| poker_action_selection_check_immediate.txt | 이전 즉시 체크/체크 불가 시 콜 진단 보관본. 자동으로 사용하지 않음 |
 | poker_chat.txt | 인간에게 일반 대화로 답하는 chat 경로 |
 | poker_mixed.txt | 혼합 의도의 인간 발언에 대한 추가 지시. `${player_id}`, `${speaker_id}` |
 | poker_summary.txt | 공개 후 개인 메모 회고 |
@@ -31,7 +33,30 @@ system = render_prompt('poker_decision',
 엔진이 결정하는 행동 목록/스키마 제약과 유효성 검사는 기존 코드가 관리한다.
 연습용 graph_practice/poker_llm_practice는 이 변경에 포함하지 않는다.
 
-## 새 행동 지시문으로 실험 3 실행
+## 임시 강제 행동 체크 진단
+
+이전 즉시 체크 진단은 일반 사건의 판단에서 체크/콜이 끝나 force_bet=true 호출이 없었다.
+현재 활성 템플릿은 최소 게임 발언을 채운 후 추가 발언 없이 silent를 선언하고,
+force_bet=false에서는 내 차례여도 bet=null로 행동을 보류한다. true에서만 허용된 check,
+체크할 수 없으면 call을 선택한다. 스키마/엔진의 허용 행동은 유지한다.
+실험 3에서는 LLM인 A에만 적용되며 B/C는 기존 고정 정책이다.
+
+force_bet는 자기 차례 표시와 별개다. runner의 일반 사건 판단은 기본 false다.
+BetTurn 통지를 보낼 때 대화가 quiet이면 true를 사용하고, 베팅이 열린 상태에서 실행 중인
+AI 작업이 모두 끝났는데 현재 AI의 행동이 남아 있어도 true로 다시 요청한다.
+시간 제한이 아니라 이 상태 조건에 의해 발생한다. 다음 결과에서는 실제 true 요청의
+존재와 그때의 allowed_bets/모델 원문/접수 행동을 함께 확인한다.
+
+```sh
+.venv/bin/python -m experiments.run --stage 3 --cases 1 --conditions control
+```
+
+이 명령은 B/C 상대별 1사례, 총 2라운드다. 체크를 못 하는 상황에서는 콜이 정상 진단 응답이다.
+일반 판단으로 돌아가려면 poker_action_selection_standard.txt의 내용을
+poker_action_selection.txt에 복사하고 프로세스를 새로 시작한다.
+이전 즉시 체크 진단으로 돌아가려면 poker_action_selection_check_immediate.txt를 사용한다.
+
+## 일반 실험 3 실행
 
 ```sh
 .venv/bin/python -m experiments.run --stage 3 --cases 10
@@ -40,7 +65,7 @@ system = render_prompt('poker_decision',
 공급자와 모델은 기존 config를 따른다. 현재 config는 ollama/qwen3:8b다.
 10은 상대별 사례 수다. B/C 각각 10사례 × control/both 2조건으로 총 40라운드이며,
 재판단·검증 재시도·회고 때문에 LLM 호출은 40회보다 많을 수 있다.
-새 지시문이 모든 조건에 적용되며 이전 지시문을 다시 실행하는 별도 비교군은 없다.
+활성 지시문이 모든 조건에 적용되며 이전 지시문을 다시 실행하는 별도 비교군은 없다.
 
 manifest.json의 source_hashes에 템플릿 `.txt`와 로더 코드 해시를 기록한다.
 각 실제 system/user/schema와 응답은 기존 model_calls.jsonl에 보존된다.

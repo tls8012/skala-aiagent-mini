@@ -1586,3 +1586,11 @@ experiments/common.py의 source_hashes에 템플릿 파일과 로더 코드를 �
 엔진을 통과하는 새 검사 3개를 포함해 Python 120개 중 119개 통과했다. 기존 연습 그래프를
 미구현으로 가정하는 검사 1개 실패는 동일하다. 원문과 템플릿의 공백 정규화 비교로 행동 선택
 지시 교체 외의 게임 판단/잡담/회고/해석 지시가 유지되는 것도 확인했다. git diff --check 통과.
+
+### 강제 행동 경로 진단 지시문
+
+활성 poker_action_selection.txt를 false일 때 최소 발언 후 보류, true에서 체크/콜하는
+진단 지시로 덮어썼다. 일반 행동 지시문과 즉시 체크 진단은 별도 보관 파일로 유지한다.
+runner/graph/스키마/엔진/실험 실행 코드는 변경하지 않았다. tests/test_poker_prompts.py에서
+대역 모델과 기존 FixedPolicy를 실제 그래프/runner에 연결해 false→true 전환 및 체크/콜 접수를
+확인했다. 관련 4개 검사 통과. 실제 모델 실행은 사용자가 수행한다.

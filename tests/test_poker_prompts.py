@@ -1,4 +1,5 @@
 """템플릿 렌더링, 강제 행동의 체크/콜/폴드 접수, 실험 템플릿 추적 검사. 모델 호출 없음."""
+import asyncio
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -9,6 +10,7 @@ from agents.graph import build_graph
 from agents.models import AgentDecision, Bet, PlayerCommand
 from agents.poker_llm import PokerLLM
 from agents.prompts import render_prompt
+from agents.runner import RoundRunner
 from experiments.common import ExperimentConfig, RunRecorder, digest
 
 
@@ -35,6 +37,45 @@ class TemplateTests(unittest.TestCase):
 
 
 class CompleteActionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_waiting_reaches_runner_force_bet_then_check_and_call(self):
+        from experiments.opponents import FixedPolicy
+        with TemporaryDirectory() as folder:
+            table = Table(['A', 'B'], config=GameConfig(data_dir=Path(folder)))
+            class MCP:
+                async def call_tool(self, name, arguments, server):
+                    return {'status': 'ready', 'matches': []}
+            class LLM:
+                calls = []
+                async def complete(self, system, user, schema=None):
+                    data = json.loads(user)
+                    observation = data['observation']
+                    if observation['phase'] == 'revealed':
+                        return json.dumps(dict.fromkeys(('round', 'game', 'long'), '')), {}
+                    bet = None
+                    if data['force_bet'] and observation['allowed_bets']:
+                        action = 'check' if 'check' in observation['allowed_bets'] else 'call'
+                        bet = {'action': action, 'raise_size': None}
+                    self.calls.append({'forced': data['force_bet'], 'allowed': observation['allowed_bets'],
+                                       'chosen': bet, 'system': system})
+                    required = observation['required_game_utterances'] > 0
+                    return json.dumps({'speech': 'speak' if required else 'silent',
+                                       'text': '먼저 판단을 기다릴게.' if required else '', 'bet': bet,
+                                       'wait_for_dialogue': bet is None, 'memory_updates': {}}), {}
+            llm = LLM()
+            policy = FixedPolicy('B', 'aggressive', 42, 's3-B-01')
+            runner = RoundRunner(table, {'A': build_graph(PokerLLM(table, MCP(), 'A', llm)), 'B': policy},
+                                 on_event=policy.on_event)
+            await asyncio.wait_for(runner.run_round(), 5)
+            self.assertEqual(runner.errors, {})
+            waiting = [c for c in llm.calls if not c['forced'] and c['allowed']]
+            self.assertTrue(waiting)
+            self.assertTrue(all(c['chosen'] is None for c in waiting))
+            forced = [c for c in llm.calls if c['forced']]
+            self.assertTrue(forced)
+            self.assertTrue(all(render_prompt('poker_action_selection') in c['system'] for c in forced))
+            actions = [e['action'] for e in table.events if e['type'] == 'BetPlaced' and e['player_id'] == 'A']
+            self.assertEqual(actions, ['check', 'call'])
+
     async def test_force_bet_allows_check_call_and_fold_through_graph_and_engine(self):
         for action in ('check', 'call', 'fold'):
             with self.subTest(action=action), TemporaryDirectory() as folder:
@@ -62,8 +103,7 @@ class CompleteActionTests(unittest.IsolatedAsyncioTestCase):
                 output = await build_graph(backend).ainvoke({'observation': table.observe('A').model_dump(),
                     'event': table.events[-1], 'force_bet': True})
                 self.assertTrue(llm.user['force_bet'])
-                self.assertIn('각각 그 자체로 온전한 행동 선택이다', llm.system)
-                self.assertIn('허용된 check, call, fold를 선택해도 이 요구를 완전히 충족한다', llm.system)
+                self.assertIn(render_prompt('poker_action_selection'), llm.system)
                 self.assertNotIn('${action_selection}', llm.system)
                 self.assertEqual(output['decision']['bet']['action'], action)
                 results = table.apply_decision('A', AgentDecision.model_validate(output['decision']), 'decision')

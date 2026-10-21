@@ -1,4 +1,4 @@
-"""모델/검색/개인 메모가 없는 관찰 기반 정책. Table은 주입하지 않는다."""
+"""1·2단계의 기존 자료/진단 호환 정책. stage3은 rule_opponents.py를 사용한다."""
 import random
 
 from agents.models import AgentDecision, Bet, Observation

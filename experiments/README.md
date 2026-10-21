@@ -138,7 +138,8 @@ heads-up을 위해 엔진 인원 제한을 바꾸거나 가짜 세 번째 참가
 | stage1.py | 30개 고정 판단 상황 × 3정보 조건. 한 결정과 실제 적용 결과 수집 |
 | stage2.py | 30개 고정 판단 상황 × 네 조건. 실제 검색 준비/메모 입력과 출력 추적 |
 | stage3.py | RoundRunner로 A–B/A–C 독립 라운드 실행. 조건 대응과 칩 정산 확인 |
-| opponents.py | FixedPolicy의 aggressive/defensive/reference 정책. 메모/검색/LLM 없음 |
+| rule_opponents.py | stage3의 결정적 BRulePolicy/CRulePolicy/ReferencePolicy. 메모/검색/LLM/난수 없음 |
+| opponents.py | 1·2단계 자료와 이전 진단 호환용 fixed-v1 정책 |
 | report.py | 행동 변화·근거 평가·칩 대응 차이·오류/지연/호출 수 요약. 원본 로그는 변경하지 않음 |
 | results/<run_id>/ | manifest/원본 JSONL/CSV/요약/격리된 data. 사례는 코드+시드로 생성하고 trials.scenario에 저장 |
 

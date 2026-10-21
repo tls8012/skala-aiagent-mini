@@ -12,7 +12,7 @@ from agents.runner import RoundRunner
 from .backends import ToolGate, make_graph, memory_connection, prepare_tools
 from .common import CONDITIONS, digest, plain
 from .fixtures import build_table, fixed_evidence, history_bank, input_hash, memoir
-from .opponents import FixedPolicy
+from .rule_opponents import make_opponent
 from . import stage3, stage4
 
 
@@ -124,8 +124,7 @@ async def run_trial(recorder, case, condition, trial_id, rows, unrelated, proven
         with recorder.span('execution', 'game_or_decision', trial_id=trial_id):
             async with asyncio.timeout(recorder.config.timeout):
                 if stage == 3:
-                    policy = FixedPolicy(case.opponent, 'aggressive' if case.opponent == 'B' else 'defensive',
-                                         recorder.config.seed, case.case_id)
+                    policy = make_opponent(case.opponent)
                     def on_event(event):
                         policy.on_event(event)
                         recorder.emit('events', trial_id=trial_id, event=event)

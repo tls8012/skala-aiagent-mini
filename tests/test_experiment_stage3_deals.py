@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 from experiments.common import ExperimentConfig
 from experiments.deals import FIXED_DEALS
+from experiments.rule_opponents import POLICY_VERSIONS
 from experiments.report import read_rows, summarize
 from experiments.run import run
 
@@ -47,11 +48,14 @@ class Stage3DealTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(trial['deal'], {'A': own.to_dict(), trial['opponent']: opponent.to_dict()})
             self.assertEqual(trial['final_chips']-trial['initial_chips'], trial['chip_delta'])
             self.assertFalse(trial['runner_errors'])
+            self.assertEqual(trial['policy_version'], POLICY_VERSIONS[trial['opponent']])
         self.assertEqual(len(hashes), 20)
         self.assertTrue(all(len(values) == 1 for collection in (hashes, banks, public_banks, memos, game_ids) for values in collection.values()))
         manifest = json.loads((root / 'manifest.json').read_text())
         self.assertEqual(manifest['planned_trials'], 40)
         self.assertEqual(manifest['protocol']['deals_per_opponent'], 10)
+        self.assertFalse(manifest['protocol']['opponent_randomness'])
+        self.assertEqual(manifest['protocol']['history_policy_versions'], POLICY_VERSIONS)
         self.assertEqual(set(manifest['history_banks']), {'B', 'C'})
         self.assertTrue(all(bank['rounds'] == 20 for bank in manifest['history_banks'].values()))
         by_id = {t['trial_id']: t for t in trials}

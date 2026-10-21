@@ -10,6 +10,7 @@ from agents.models import Bet, PlayerCommand
 from agents.table import Table
 from .common import digest, ObservedTable
 from .opponents import FixedPolicy
+from .rule_opponents import make_opponent, ReferencePolicy
 from .deals import deal_cards
 
 FAMILIES = ('BLUFF', 'TRUTH', 'AGGRESSION', 'CONSERVATIVE', 'LIMITED')
@@ -78,8 +79,8 @@ def history_bank(config, case, *, stage, deterministic_ids=False):
             cards = [Card(rng.choice(range(11, 15) if high else range(2, 11)), 'S'), Card(7, 'H')]
         table.start_round({'A': cards[0], pid: cards[1]})
         style = 'defensive' if pid == 'C' else 'aggressive'
-        policy = FixedPolicy(pid, style, case.seed+100000, f'bank-{i}')
-        reference = FixedPolicy('A', 'reference', 0, f'bank-{i}')
+        policy = make_opponent(pid) if stage == 3 else FixedPolicy(pid, style, case.seed+100000, f'bank-{i}')
+        reference = ReferencePolicy('A') if stage == 3 else FixedPolicy('A', 'reference', 0, f'bank-{i}')
         submit(table, 'A', 'speak', text='일단 공개 결과까지 보자.')
         first = policy.decide(table.observe(pid))
         submit(table, pid, 'speak', text=first.text)
@@ -92,7 +93,7 @@ def history_bank(config, case, *, stage, deterministic_ids=False):
                 policy.on_event(event)
         record = json.loads(next(table.archive_dir.glob('round_*.json')).read_text())
         provenance.append({'dataset_round': i+1, 'original_game_id': game_id, 'original_round_id': 1,
-                           'original_sha256': digest(record), 'policy': style, 'policy_version': policy.version})
+                           'original_sha256': digest(record), 'policy': policy.style, 'policy_version': policy.version})
         record['round_id'] = i+1
         for event in record['events']:
             event['round_id'] = i+1

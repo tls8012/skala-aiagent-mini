@@ -172,6 +172,11 @@ class ObservedGraph:
             self.recorder.emit('decisions', event='input', trial_id=self.trial_id, player_id='A', state=state)
             with self.recorder.span('graph', 'decision', trial_id=self.trial_id):
                 result = await self.compiled.ainvoke(state, config={
+                    'metadata': {'experiment_run_id': self.recorder.run_id, 'trial_id': self.trial_id,
+                                 'decision_id': decision_id, 'stage': self.recorder.config.stage,
+                                 'round_id': state['observation']['round_id'],
+                                 'basis_event': state['observation']['event_id'],
+                                 'event_type': state['event'].get('type')},
                     'callbacks': [NodeTimingHandler(self.recorder, self.trial_id, decision_id)]})
             self.recorder.emit('decisions', event='proposed', trial_id=self.trial_id, player_id='A', result=result)
             key = ('A', digest(result['decision']))

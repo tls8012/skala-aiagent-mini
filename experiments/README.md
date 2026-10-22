@@ -39,7 +39,10 @@
 `--conditions`에 해당 단계의 이름을 여러 개 넘기면 일부 조건만 실행한다.
 `--seed`, `--output`, `--timeout`(판단/라운드), `--index-timeout`(도구 준비)을 바꿀 수 있다.
 일부 시행이 실패해도 나머지를 실행하고 종료 코드는 1로 반환한다. 원본 실패 로그는 남는다.
-CLI는 외부 LangSmith 전송을 끄고 로컬 파일에 기록한다.
+기존 로컬 파일 기록을 유지하며 LangSmith 추적은 `.env`/환경변수 설정을 따른다.
+`LANGSMITH_TRACING=true`, `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT`로 활성화한다.
+추적 없이 측정하려면 `LANGSMITH_TRACING=false`를 환경변수로 지정한다.
+실험 trace에는 `experiment_run_id`/`trial_id`/`decision_id`가 포함되고 CLI 종료 전에 전송 대기를 처리한다.
 
 결과는 `experiments/results/<run_id>/`에 생성되고 버전 관리에서 제외한다.
 

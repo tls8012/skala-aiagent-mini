@@ -1651,3 +1651,38 @@ chat/private_request 구절은 질의와 임베딩 본문에서 제외하며, �
 다중 게임 구절 보존, 원문/해석/공개 결과 유지, 옛 벡터 제외, 해당 사건만 재임베딩 및
 반복 색인 생략을 확인했다. 이벤트/관찰 메시지 양쪽의 질의와 기존 인간 입력·엔진·그래프·
 실험 검사를 포함해 99개 통과, git diff --check 통과. 실제 LLM/임베딩 HTTP 호출은 하지 않았다.
+
+### 그래프 LangSmith 추적 연결 — 2026-10-22
+
+기존 `.env`의 LANGSMITH_TRACING=true, LANGSMITH_PROJECT=indian-poker 및 endpoint 설정을
+서버/데모/실험의 기존 load_dotenv 경로에서 그대로 사용한다. `.env` 내용은 수정하지 않았다.
+현재 확인한 `.env`와 실행 환경에는 LANGSMITH_API_KEY/LANGCHAIN_API_KEY가 없으므로 실제
+원격 업로드에는 사용자가 키를 추가해야 한다. `.env.example`은 현대 LANGSMITH_* 이름으로 갱신했다.
+
+- agents/runner.py: run_round에 @traceable(name='poker.round')를 붙여 라운드 단위 부모를
+  만든다. 부모 입력에는 publish_memory 플래그만 기록하고 MCP 객체는 직렬화하지 않는다.
+  부모 metadata는 game_id/round_id다. _invoke_graph는 각 비동기 task의 tracing_context에
+  game_id/round_id/player_id/basis_event/trigger_event/event_type/phase를 넣는다.
+  일반 판단과 공개 후 동시 회고 모두 이 경로를 사용한다. 에이전트의 ainvoke 계약은 유지한다.
+- agents/graph.py: 컴파일된 그래프 이름은 poker.A/poker.B/...이며 player 태그와
+  game_id/player_id metadata를 기본으로 바인딩한다. route/research/answer/validate/remember는
+  LangGraph 자동 계측을 사용하고 노드에 중복 데코레이터를 붙이지 않는다.
+- experiments/backends.py: 기존 NodeTimingHandler를 유지하면서 experiment_run_id/trial_id/
+  decision_id/stage/round_id/basis_event/event_type을 추가해 로컬 기록과 trace를 연결한다.
+- experiments/run.py: 강제 추적 비활성화를 제거했다. 실험과 데모 CLI는 종료 시
+  wait_for_all_tracers로 업로드 대기를 처리한다. 서버의 기존 종료 대기는 재사용한다.
+  LANGSMITH_TRACING=false로 추적을 끌 수 있고 로컬 실험 로그는 계속 기록한다.
+
+추적 추가 범위는 라운드/참가자 그래프/노드다. 실제 LLM HTTP 어댑터와 Chroma/MCP 서버
+내부에는 새 계측을 추가하지 않았다. MCP 클라이언트에 원래 있던 도구 호출 trace는 유지한다.
+별도 LLM trace/토큰 집계를 추가하지 않았으며 기존 실험 usage JSONL 집계는 유지한다.
+
+검증: tests/test_poker_tracing.py에서 실제 LangSmith SDK의 전송 메서드를 대체하고 HTTP를
+차단했다. A 대기 중 B 실행, 병렬 그래프의 공통 부모/플레이어·사건 metadata, 다음 라운드의
+별도 부모, 추적 비활성화, 실험 식별자·기존 노드 타이밍 보존, CLI .env 설정 보존/종료 대기를
+검사했다. 관련 그래프/인간 입력/실험/검색/HTTP 서버 검사까지 77개 통과, git diff --check 통과.
+실제 LangSmith 전송, LLM 호출, 임베딩 호출은 수행하지 않았다.
+
+참고: [LangGraph tracing](https://docs.langchain.com/langsmith/trace-with-langgraph),
+[custom instrumentation](https://docs.langchain.com/langsmith/annotate-code),
+[metadata/tags](https://docs.langchain.com/langsmith/add-metadata-tags).

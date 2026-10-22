@@ -136,4 +136,6 @@ def build_graph(backend: PokerLLM):
     graph.add_conditional_edges('validate', lambda state: 'done' if state['valid'] else 'retry',
                                 {'done': 'remember', 'retry': 'answer'})
     graph.add_edge('remember', END)
-    return graph.compile()
+    return graph.compile(name=f'poker.{backend.player_id}').with_config(
+        tags=['poker-graph', f'player:{backend.player_id}'],
+        metadata={'game_id': backend.table.game_id, 'player_id': backend.player_id})

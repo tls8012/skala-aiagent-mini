@@ -2,8 +2,9 @@
 import argparse
 import asyncio
 import importlib
-import os
 from pathlib import Path
+
+from langchain_core.tracers.langchain import wait_for_all_tracers
 
 from agent.llm_controller import GAME_BACKENDS, check_backend
 from agents.config import GameConfig
@@ -50,13 +51,14 @@ def main():
     parser.add_argument('--timeout', type=float, default=600, help='한 시행의 판단/라운드 제한 시간(초)')
     parser.add_argument('--index-timeout', type=float, default=180)
     args = parser.parse_args()
-    os.environ['LANGSMITH_TRACING'] = 'false'
-    os.environ['LANGCHAIN_TRACING_V2'] = 'false'
     try:
         config = ExperimentConfig(**{**vars(args), 'conditions': tuple(args.conditions)})
     except ValueError as error:
         parser.error(str(error))
-    result = asyncio.run(run(config))
+    try:
+        result = asyncio.run(run(config))
+    finally:
+        wait_for_all_tracers()
     return 1 if any(not t['valid'] for t in read_rows(result, 'trials')) else 0
 
 

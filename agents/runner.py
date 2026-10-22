@@ -4,6 +4,8 @@ from collections import deque
 from collections.abc import Callable, Mapping
 from uuid import uuid4
 
+from langsmith import get_current_run_tree, traceable, tracing_context
+
 from .models import AgentDecision, CommandResult, PlayerCommand
 from .speech_interpreter import SpeechInterpreter
 
@@ -112,11 +114,20 @@ class RoundRunner:
                 # 보류된 옛 문장을 자동 공개하지 않고 최신 관찰로 재판단한다.
                 self.table.discard_deferred(pid)
             self.decisions += 1
-            task = asyncio.create_task(self.graphs[pid].ainvoke({
-                'observation': observation.model_dump(), 'event': event, 'force_bet': force_bet}))
+            task = asyncio.create_task(self._invoke_graph(pid, observation, event, force_bet))
             self._tasks[pid] = task
             self._task_events[pid] = event
             task.add_done_callback(lambda completed, actor=pid: self._inbox.put_nowait(('ai', actor, completed, None)))
+
+    async def _invoke_graph(self, pid, observation, event, force_bet):
+        """각 task의 추적 문맥을 분리한다. 그래프/노드는 LangGraph가 추적한다."""
+        with tracing_context(metadata={
+                'game_id': observation.game_id, 'round_id': observation.round_id,
+                'player_id': pid, 'basis_event': observation.event_id,
+                'trigger_event': event.get('event_id'), 'event_type': event.get('type'),
+                'phase': observation.phase}):
+            return await self.graphs[pid].ainvoke({
+                'observation': observation.model_dump(), 'event': event, 'force_bet': force_bet})
 
     async def _cancel_tasks(self):
         tasks = list(self._tasks.values())
@@ -138,8 +149,7 @@ class RoundRunner:
         observations = {pid: self.table.observe(pid) for pid in participants}
         self.decisions += len(participants)
         # 공개 후 메모 회고는 동시 진행해도 게임의 발언 시점/베팅 순서에 영향을 주지 않는다.
-        outputs = await asyncio.gather(*(self.graphs[pid].ainvoke({
-            'observation': observations[pid].model_dump(), 'event': event, 'force_bet': False})
+        outputs = await asyncio.gather(*(self._invoke_graph(pid, observations[pid], event, False)
             for pid in participants), return_exceptions=True)
         for pid, output in zip(participants, outputs):
             if isinstance(output, BaseException):
@@ -197,6 +207,8 @@ class RoundRunner:
                 return self.table._result('rejected', 'speech interpretation failed; retry with a new request ID')
         return self.table.submit(pid, command, interpretation=interpretation)
 
+    @traceable(name='poker.round', tags=['poker-round'],
+               process_inputs=lambda inputs: {'publish_memory': inputs.get('publish_memory', False)})
     async def run_round(self, *, mcp=None, publish_memory: bool = False) -> dict:
         """백그라운드 task로 실행. 인간 입력은 submit_human()으로 별도 제출한다."""
         if self.running:
@@ -222,6 +234,8 @@ class RoundRunner:
         try:
             if self.table.round is None or self.table.round.phase == 'revealed':
                 self.table.start_round()
+            if run := get_current_run_tree():
+                run.add_metadata({'game_id': self.table.game_id, 'round_id': self.table.round.number})
             self._dispatch()
             self.started.set()
             while self.table.round.phase == 'dialogue':

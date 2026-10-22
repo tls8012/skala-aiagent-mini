@@ -130,7 +130,11 @@ def main():
     args = parser.parse_args()
     if args.rounds < 1:
         parser.error('--rounds must be positive')
-    asyncio.run(run_demo(args))
+    try:
+        asyncio.run(run_demo(args))
+    finally:
+        from langchain_core.tracers.langchain import wait_for_all_tracers
+        wait_for_all_tracers()
 
 
 if __name__ == '__main__':

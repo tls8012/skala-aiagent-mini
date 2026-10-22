@@ -123,7 +123,7 @@ class ExperimentTracingConfigTests(unittest.TestCase):
     def test_cli_preserves_dotenv_tracing_and_flushes_without_running_models(self):
         from experiments.run import main
         with patch.dict(os.environ, {'LANGSMITH_TRACING': 'false', 'LANGCHAIN_TRACING_V2': 'false'}), \
-             patch('dotenv.load_dotenv', side_effect=lambda: os.environ.update(
+             patch('agents.tracing.load_dotenv', side_effect=lambda *args: os.environ.update(
                  LANGSMITH_TRACING='true', LANGSMITH_PROJECT='poker-test')), \
              patch('sys.argv', ['experiments.run', '--stage', '3', '--cases', '1', '--backend', 'fake']), \
              patch('experiments.run.run', new=AsyncMock(return_value=Path('/unused'))), \

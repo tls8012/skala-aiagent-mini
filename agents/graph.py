@@ -10,6 +10,7 @@ from langgraph.graph import END, START, StateGraph
 
 from .models import AgentDecision, Observation
 from .poker_llm import PokerLLM
+from .runtime_log import record_runtime
 
 
 class GraphInput(TypedDict):
@@ -32,8 +33,10 @@ class AgentState(GraphInput, total=False):
 
 
 async def route_node(state: AgentState, backend: PokerLLM) -> dict:
-    return {'route': backend.route(Observation.model_validate(state['observation']), state['event']),
-            'attempts': 0, 'feedback': ''}
+    route = backend.route(Observation.model_validate(state['observation']), state['event'])
+    record_runtime(backend.table, 'graph_route', player_id=backend.player_id,
+                   basis_event=state['observation']['event_id'], route=route, event=state['event'])
+    return {'route': route, 'attempts': 0, 'feedback': ''}
 
 
 async def research_node(state: AgentState, backend: PokerLLM) -> dict:

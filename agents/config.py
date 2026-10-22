@@ -51,6 +51,7 @@ class GameConfig:
     retrieval_claim_limit: int = 5
     retrieval_betting_limit: int = 5
     retrieval_candidate_multiplier: int = 4
+    runtime_log_enabled: bool = True
 
     def __post_init__(self):
         for name in ('initial_chips', 'ante', 'target_chips', 'max_utterances',
@@ -75,6 +76,8 @@ class GameConfig:
             raise ValueError('leave at least 128 tokens of conservative embedding headroom')
         if self.ollama_think is not None and type(self.ollama_think) is not bool:
             raise ValueError('ollama_think must be bool or None')
+        if type(self.runtime_log_enabled) is not bool:
+            raise ValueError('runtime_log_enabled must be bool')
         if self.ollama_usd_per_1k_tokens < 0 or not self.ollama_model.strip():
             raise ValueError('invalid Ollama model or token price')
         if not self.router_model.strip() or self.router_timeout <= 0:

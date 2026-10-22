@@ -38,8 +38,8 @@ async def run(config):
 
 
 def main():
-    from dotenv import load_dotenv
-    load_dotenv()
+    from agents.tracing import configure_tracing
+    configure_tracing()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--stage', type=int, required=True, choices=(1, 2, 3, 4))
     parser.add_argument('--cases', type=int, help='상황 수: 1~2단계 기본 30, 3~4단계 기본 10개 배패')

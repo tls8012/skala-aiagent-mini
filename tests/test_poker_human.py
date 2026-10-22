@@ -318,7 +318,7 @@ class HumanTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(decision.reply_to,'mixed')
         self.assertEqual(table.round.conversation.counts['B'],1)
         self.assertIn('공개 요청은 거절',calls[0][0])
-        self.assertEqual(calls[0][1]['human_request']['interpretation'],parsed.model_dump())
+        self.assertEqual(calls[0][1]['addressed_request']['interpretation'],parsed.model_dump())
         schema=calls[0][2]
         variants=schema.get('anyOf',[schema])
         self.assertTrue(all(v['properties']['response_channel']['enum']==['chat'] for v in variants))

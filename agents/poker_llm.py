@@ -31,6 +31,14 @@ class PokerLLM:
         self.config = table.config
         self._research_cache = {}
 
+    @staticmethod
+    def _model_observation(observation: Observation) -> dict:
+        payload = observation.model_dump()
+        # 입력 방식은 엔진/라우터만 사용한다. 모델에게는 모두 동등한 참가자로 보낸다.
+        payload['players'] = [{key: value for key, value in player.items() if key != 'kind'}
+                              for player in payload['players']]
+        return payload
+
     def route(self, observation: Observation, event: dict) -> str:
         """공개 후 회고 / 검증된 인간 잡담 / 게임 판단의 세 경로."""
         if observation.phase == 'revealed':
@@ -164,7 +172,7 @@ class PokerLLM:
         system = render_prompt('poker_decision', action_selection=render_prompt('poker_action_selection'))
         if human_event:
             system += '\n\n' + render_prompt('poker_mixed', player_id=self.player_id, speaker_id=human_event['player_id'])
-        user = json.dumps({'observation': observation.model_dump(), 'human_request': human_event, 'past_experiences': research,
+        user = json.dumps({'observation': self._model_observation(observation), 'addressed_request': human_event, 'past_experiences': research,
                            'force_bet': force_bet, 'feedback': feedback}, ensure_ascii=False)
         content, _ = await self.llm.complete(system, user, schema=self._decision_schema(observation, force_bet, allow_chat=human_event is not None))
         draft = DecisionDraft.model_validate_json(content)
@@ -183,7 +191,7 @@ class PokerLLM:
         if observation.phase != 'revealed' or observation.result is None:
             raise ValueError('round summary requires a revealed result')
         system = render_prompt('poker_summary')
-        user = json.dumps({'observation': observation.model_dump(), 'feedback': feedback}, ensure_ascii=False)
+        user = json.dumps({'observation': self._model_observation(observation), 'feedback': feedback}, ensure_ascii=False)
         content, _ = await self.llm.complete(system, user, schema=self._memory_schema())
         updates = MemoryUpdate.model_validate_json(content)
         return AgentDecision(round_id=observation.round_id, basis_event=observation.event_id,

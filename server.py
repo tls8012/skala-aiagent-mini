@@ -6,9 +6,9 @@ import json
 import os
 from pathlib import Path
 
-from dotenv import load_dotenv
+from agents.tracing import configure_tracing
 
-load_dotenv()
+configure_tracing()
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, StreamingResponse

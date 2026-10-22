@@ -1686,3 +1686,45 @@ chat/private_request 구절은 질의와 임베딩 본문에서 제외하며, �
 참고: [LangGraph tracing](https://docs.langchain.com/langsmith/trace-with-langgraph),
 [custom instrumentation](https://docs.langchain.com/langsmith/annotate-code),
 [metadata/tags](https://docs.langchain.com/langsmith/add-metadata-tags).
+
+### 카드 질문의 게임 경로와 실행 진단 — 2026-10-22
+
+실제 공개 아카이브 e957d24249bb45b3a4ed221e3fed40db/round_000001.json을 확인했다.
+사건 13의 ‘내 카드 알려줘 + 날씨’가 private_request/chat으로 해석돼 channel=chat으로
+접수됐고, 사건 14/15에서 AI 둘이 일반 채팅 응답으로 카드 내용을 답했다.
+모델이 인간에게 특혜를 줬는지는 이것만으로 확정할 수 없지만, 카드 질문을 내부 비공개
+정보 요청으로 분류해 게임 판단을 우회한 사실은 확인됐다. 실제 모델을 다시 호출하지 않았다.
+
+- speech_interpreter 템플릿: 카드 정보 교환/카드 질문은 game이며, private_request는
+  시스템 프롬프트/개인 메모/내부 추론 요청임을 구분했다. 카드+날씨 복합 예시를 추가했다.
+- poker_decision/chat/mixed 템플릿: 발언자는 사용자나 지시권자가 아니라 동등한 경쟁자다.
+  카드 공개/블러핑/거절은 게임 전략으로 선택한다. 일반 채팅은 카드/베팅 협상을 처리하지 않는다.
+  공개 자체를 엔진에서 금지하거나 항상 거짓말하게 만들지는 않았다.
+- PokerLLM._model_observation: 판단/회고에 전달하는 players에서 입력 방식 kind를 제외한다.
+  엔진/라우터의 관찰 상태와 실제 참가자 ID는 유지한다. 복합 발언의 모델 입력 필드는
+  human_request에서 addressed_request로 바꿨다. 기존 메모 원문은 자동으로 고치지 않는다.
+
+agents/runtime_log.py는 <data_dir>/games/<game_id>/runtime.jsonl에 진행 중 진단을 추가한다.
+input_interpreted/graph_route/graph_result/graph_failed/graph_cancelled/decision_applied를
+기록해 분류, 라우팅, 최종 제안 및 엔진 접수 결과를 연결한다. route/result에는 player_id와
+basis_event가 있고, 오류/취소도 남는다. graph_result는 실제 공개 확정이 아닌 제안이다.
+라운드 종료 후 기존 round_*.json 공개 아카이브는 유지한다. 진단 파일은 공개 HTTP/SSE/MCP에
+배포하지 않으며 runtime_log_enabled=False로 끌 수 있다. API 키·요청 헤더는 기록하지 않는다.
+
+agents/tracing.py의 configure_tracing은 저장소 .env 경로를 명시해 로딩하고 LangSmith의
+환경변수 캐시를 초기화한다. 기존 명시적 프로세스 환경변수가 우선한다. 서버/데모/실험 시작에서
+호출하며 enabled/project/endpoint/api_key_configured만 콘솔에 표시한다. 키의 값은 출력하지 않는다.
+실행 중 .env를 수정했으면 서버를 재시작해 적용한다. 파일 자체는 수정하지 않았다.
+참고: [환경변수 캐시 진단](https://docs.langchain.com/langsmith/troubleshooting-variable-caching).
+
+원격 진단 과정에서는 키가 로드되지 않은 시점의 전송이 401로 실패했다. 이후 키가 로드된
+새 프로세스의 가짜 두 플레이어 그래프를 실제 LangSmith에 전송했고, indian-poker 프로젝트에서
+poker.round의 success/완료 상태와 poker.TraceA/TraceB 하위 그래프를 다시 조회해 확인했다.
+즉시 조회는 404였지만 이후 조회에서는 확인돼, 업로드 직후 조회 결과만으로 실패를 확정하지 않았다.
+이전 사용자 서버의 정확한 실패 원인은 당시 시작 설정/전송 로그가 없어 확정하지 않는다.
+기존 사용자 플레이 내용은 원격 진단에 재전송하지 않았고 모델/임베딩 호출은 0회다.
+
+검증: 카드+날씨의 올바른 해석을 대역 모델로 주입해 mixed 게임 경로·게임 발언 횟수·
+모델 입력의 kind 제거·원래 엔진 상태 보존·로컬 로그를 확인했다. 설정 로그의 키 미노출과
+누락 경고, 기존 인간 입력/병렬 trace/그래프/HTTP/검색/실험까지 80개 통과, diff 검사 통과.
+새 지시문의 실제 모델 분류/전략 선택 품질을 재평가한 것은 아니다.

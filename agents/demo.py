@@ -117,8 +117,8 @@ async def run_demo(args):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    from dotenv import load_dotenv
-    load_dotenv()
+    from .tracing import configure_tracing
+    configure_tracing()
     parser.add_argument('--mode', choices=GAME_BACKENDS, default=GameConfig().llm_backend)
     parser.add_argument('--players', type=int, default=3)
     parser.add_argument('--rounds', type=int, default=1)

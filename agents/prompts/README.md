@@ -14,8 +14,8 @@ JSON의 `{}`는 그대로 쓸 수 있고, 템플릿에서 달러 기호 자체�
 | poker_action_selection_standard.txt | 온전한 행동 선택을 명시한 기존 지시문 보관본. 자동으로 사용하지 않음 |
 | poker_action_selection_check_immediate.txt | 이전 즉시 체크/체크 불가 시 콜 진단 보관본. 자동으로 사용하지 않음 |
 | poker_action_selection_check_forced.txt | false에서 보류하고 true에서 체크/콜하는 진단 보관본. 자동으로 사용하지 않음 |
-| poker_chat.txt | 인간에게 일반 대화로 답하는 chat 경로 |
-| poker_mixed.txt | 혼합 의도의 인간 발언에 대한 추가 지시. `${player_id}`, `${speaker_id}` |
+| poker_chat.txt | 지목된 상대 참가자에게 일반 대화로 답하는 chat 경로 |
+| poker_mixed.txt | 상대의 혼합 의도 발언에 대한 추가 지시. `${player_id}`, `${speaker_id}` |
 | poker_summary.txt | 공개 후 개인 메모 회고 |
 | private_memories.txt | 모든 PlayerLLM 호출에 메모 첨부. `${system}`, `${long_memo}`, `${game_memo}`, `${round_memo}` |
 | speech_interpreter.txt | 인간 발언의 game/chat/private_request 분해 |

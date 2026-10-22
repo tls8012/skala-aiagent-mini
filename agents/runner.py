@@ -8,6 +8,7 @@ from langsmith import get_current_run_tree, traceable, tracing_context
 
 from .models import AgentDecision, CommandResult, PlayerCommand
 from .speech_interpreter import SpeechInterpreter
+from .runtime_log import record_runtime
 
 
 class RoundRunner:
@@ -126,8 +127,17 @@ class RoundRunner:
                 'player_id': pid, 'basis_event': observation.event_id,
                 'trigger_event': event.get('event_id'), 'event_type': event.get('type'),
                 'phase': observation.phase}):
-            return await self.graphs[pid].ainvoke({
-                'observation': observation.model_dump(), 'event': event, 'force_bet': force_bet})
+            try:
+                output = await self.graphs[pid].ainvoke({
+                    'observation': observation.model_dump(), 'event': event, 'force_bet': force_bet})
+                record_runtime(self.table, 'graph_result', player_id=pid,
+                               basis_event=observation.event_id, result=output)
+                return output
+            except BaseException as error:
+                record_runtime(self.table, 'graph_cancelled' if isinstance(error, asyncio.CancelledError)
+                               else 'graph_failed', player_id=pid, basis_event=observation.event_id,
+                               error_type=type(error).__name__, error=str(error))
+                raise
 
     async def _cancel_tasks(self):
         tasks = list(self._tasks.values())
@@ -202,6 +212,9 @@ class RoundRunner:
             ai_ids = [other for other in r.order if self.table.players[other].kind == 'ai']
             try:
                 interpretation = await self.interpreter.interpret(command.text, ai_ids, command.target)
+                record_runtime(self.table, 'input_interpreted', player_id=pid,
+                               request_id=command.request_id, text=command.text,
+                               interpretation=interpretation.model_dump())
             except Exception as error:
                 self.interpretation_errors[command.request_id] = f'{type(error).__name__}: {error}'
                 return self.table._result('rejected', 'speech interpretation failed; retry with a new request ID')
@@ -271,6 +284,9 @@ class RoundRunner:
                         try:
                             decision = AgentDecision.model_validate(task.result()['decision'])
                             results = self.table.apply_decision(pid, decision, uuid4().hex)
+                            record_runtime(self.table, 'decision_applied', player_id=pid,
+                                           basis_event=decision.basis_event,
+                                           results=[result.model_dump() for result in results])
                             self.results.append({'player_id': pid, 'basis_event': decision.basis_event,
                                                  'results': [result.model_dump() for result in results]})
                             if any(result.status == 'deferred' for result in results) and self._addressed(source_event, pid):

@@ -1,5 +1,6 @@
 """상대별 실제 Chroma 검색과 동일 과거 라운드의 공개 결과 연결. 모델/임베딩 HTTP 호출 없음."""
 import importlib.util
+from dataclasses import replace
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -149,8 +150,77 @@ class OpponentRetrievalTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 self.tools.search_experiences('game', 'A', 1, '주장', search_kind=invalid)
 
+    def test_mixed_speech_reindexes_only_changed_event_and_returns_original_public_record(self):
+        row = self.record('B', 1)
+        speech = next(e for e in row['events'] if e['type'] == 'Speech' and e['player_id'] == 'B')
+        chat, game = 'A야 오늘 날씨 우중충하지?', '네 카드는 J 이상이야.'
+        speech.update(text=f'{chat} {game}', interpretation={'intents': [
+            {'kind': 'chat', 'targets': ['A'], 'text': chat},
+            {'kind': 'game', 'targets': ['A'], 'text': game}]})
+        self.tools._write(self.tools._experience_path('game'), json.dumps([row]))
+        original_events = self.tools.chunker.events
+        with patch.object(self.tools, '_embed', side_effect=lambda texts: [[1.0, 0.5, 0.25] for _ in texts]) as embed, \
+             patch.object(self.tools, '_queue', return_value=True):
+            # 변경 전 구현처럼 interpretation까지 포함한 원문 벡터를 저장해 둔다.
+            with patch.object(self.tools.chunker, 'events', side_effect=lambda record: [
+                    replace(d, embedding_text=None) for d in original_events(record)]):
+                self.tools.index_records('game', [row])
+            stale = self.tools.search_experiences('game', 'A', 1, game, opponent_id='B', search_kind='claims')
+            self.assertEqual(stale['status'], 'indexing')
+            self.assertEqual(stale['matches'], [])
+            before = embed.call_count
+            self.tools.index_records('game', [row])
+            self.assertEqual(embed.call_count, before + 1)
+            reembedded = embed.call_args.args[0]
+            self.assertEqual(len(reembedded), 1)  # 다른 사건은 재임베딩하지 않는다.
+            self.assertIn(game, reembedded[0])
+            self.assertNotIn(chat, reembedded[0])
+            self.assertNotIn('interpretation', reembedded[0])
+            saved = self.tools._collection('game').get(include=['documents', 'metadatas'])
+            self.assertFalse(any(chat in text for text in saved['documents']))
+            fresh = self.tools.search_experiences('game', 'A', 1, game, opponent_id='B', search_kind='claims')
+            self.assertEqual(fresh['status'], 'ready', fresh)
+            self.assertEqual(len(fresh['matches']), 1)
+            returned = json.loads(fresh['matches'][0]['text'].split('\n', 1)[1])
+            self.assertEqual(returned, speech)
+            self.assertEqual(fresh['matches'][0]['round_context']['result'], row['result'])
+            self.assertEqual(self.tools._load('game')[0]['events'], row['events'])
+            before = embed.call_count
+            self.tools.index_records('game', [row])
+            self.assertEqual(embed.call_count, before)
+
 
 class ResearchBindingTests(unittest.IsolatedAsyncioTestCase):
+    async def test_human_mixed_query_uses_only_game_text_in_event_and_later_observation(self):
+        with TemporaryDirectory() as folder:
+            table = Table(['A', 'B'], 'human', config=GameConfig(data_dir=Path(folder)))
+            table.start_round()
+            class MCP:
+                calls = []
+                async def call_tool(self, name, arguments, server):
+                    self.calls.append(arguments)
+                    return {'status': 'ready', 'matches': []}
+            mcp = MCP()
+            backend = PokerLLM(table, mcp, 'A', None)
+            chat, game = 'A야 오늘 날씨 우중충하지?', '네 카드는 J 이상이야.'
+            event = {'type': 'Speech', 'channel': 'game', 'player_id': 'human', 'event_id': 7,
+                     'text': f'{chat} {game}', 'interpretation': {'intents': [
+                         {'kind': 'chat', 'targets': ['A'], 'text': chat},
+                         {'kind': 'game', 'targets': ['A'], 'text': game}]}}
+            observation = table.observe('A')
+            self.assertEqual(backend.route(observation, event), 'mixed')
+            await backend.research(observation, event)
+            claim_query = mcp.calls[0]['query']
+            self.assertIn(game, claim_query)
+            self.assertNotIn(chat, claim_query)
+            self.assertEqual(mcp.calls[0]['opponent_id'], 'human')
+            # BetTurn/Rejudge에서도 관찰 메시지의 해석을 사용한다.
+            updated = observation.model_copy(update={'messages': [event]})
+            second = PokerLLM(table, mcp, 'A', None)
+            await second.research(updated, {'type': 'BetTurn'})
+            self.assertEqual(mcp.calls[2]['query'], claim_query)
+            self.assertIn(chat, event['text'])
+
     async def test_research_binds_speaker_caches_by_opponent_and_forwards_context_to_model(self):
         with TemporaryDirectory() as folder:
             table = Table(['A', 'B', 'D'], config=GameConfig(data_dir=Path(folder),

@@ -7,6 +7,7 @@ from copy import deepcopy
 from typing import Literal
 from pydantic import Field
 
+from .chunker import game_speech_text
 from .models import AgentDecision, Bet, Contract, MemoryUpdate, Observation
 from .prompts import render_prompt
 
@@ -48,8 +49,8 @@ class PokerLLM:
     async def research(self, observation: Observation, event: dict) -> dict:
         """주장 신뢰성과 베팅 성향을 각각 검색. 유형별 ready 결과만 재사용한다."""
         candidates = [message for message in observation.messages
-                      if message['channel'] in {'game', 'mixed'} and message['player_id'] != self.player_id]
-        if event.get('type') == 'Speech' and event.get('channel') in {'game', 'mixed'} and event.get('player_id') != self.player_id:
+                      if message['player_id'] != self.player_id and game_speech_text(message).strip()]
+        if event.get('type') == 'Speech' and event.get('player_id') != self.player_id and game_speech_text(event).strip():
             message = event
             opponent_id = message['player_id']
         elif event.get('type') == 'BetPlaced' and event.get('player_id') != self.player_id:
@@ -62,7 +63,7 @@ class PokerLLM:
             return {'status': 'skipped', 'matches': []}
         queries = {}
         if message is not None:
-            queries['claims'] = (f"상대 {opponent_id}의 과거 카드 주장과 블러핑: {message['text']}",
+            queries['claims'] = (f"상대 {opponent_id}의 과거 카드 주장과 블러핑: {game_speech_text(message)}",
                                  self.config.retrieval_claim_limit)
         call_cost = max(0, observation.current_bet - observation.contributions.get(self.player_id, 0))
         queries['betting'] = (

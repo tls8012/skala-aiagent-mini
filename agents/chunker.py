@@ -1,9 +1,20 @@
-"""공개 사건별 무손실 청킹. 바이트 예산은 토큰 추정용이며 최종 한도는 Ollama가 검증한다."""
+"""공개 원문을 보존하고 검색용 게임 구절을 무손실 청킹한다. 최종 길이는 Ollama가 검증한다."""
 from dataclasses import dataclass
 import hashlib
 import json
 
 SCHEMA_VERSION = 'event-chunks-v1'
+
+
+def game_speech_text(message: dict) -> str:
+    """해석된 인간 발언은 game 구절만 사용. 해석 없는 기존 게임 발언은 원문 유지."""
+    if message.get('channel') not in {'game', 'mixed'}:
+        return ''
+    interpretation = message.get('interpretation')
+    if interpretation is None:
+        return message['text']
+    return '\n'.join(intent['text'] for intent in interpretation['intents']
+                     if intent['kind'] == 'game')
 
 
 @dataclass(frozen=True)
@@ -15,10 +26,15 @@ class EventDocument:
     event_type: str
     player_id: str
     text: str
+    embedding_text: str | None = None
+
+    @property
+    def indexed_text(self) -> str:
+        return self.text if self.embedding_text is None else self.embedding_text
 
     @property
     def key(self) -> str:
-        digest = hashlib.sha256(self.text.encode('utf-8')).hexdigest()[:16]
+        digest = hashlib.sha256(self.indexed_text.encode('utf-8')).hexdigest()[:16]
         return f'{self.experience_id}:event-{self.event_id}:{digest}'
 
     @property
@@ -52,12 +68,20 @@ class EventChunker:
     def events(self, record: dict) -> list[EventDocument]:
         result = []
         for event in record['events']:
-            if event['type'] == 'Speech' and event.get('channel') not in {'game', 'mixed'}:
-                continue
-            # 사건 전체를 사용한다. 긴 발언과 결과 JSON도 자르거나 생략하지 않는다.
+            embedding_text = None
+            if event['type'] == 'Speech':
+                game_text = game_speech_text(event)
+                if not game_text.strip():
+                    continue
+                if event.get('interpretation') is not None:
+                    # interpretation에도 잡담 원문이 있으므로 색인용 복사본에서 함께 제외한다.
+                    searchable = {key: value for key, value in event.items() if key != 'interpretation'}
+                    searchable['text'] = game_text
+                    embedding_text = json.dumps(searchable, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+            # 원문과 색인용 본문을 분리한다. 반환/보관용 사건은 변경하지 않는다.
             text = json.dumps(event, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
             result.append(EventDocument(record['id'], record['source'], record['round_id'],
-                event['event_id'], event['type'], event.get('player_id', ''), text))
+                event['event_id'], event['type'], event.get('player_id', ''), text, embedding_text))
         return result
 
     @staticmethod
@@ -92,7 +116,7 @@ class EventChunker:
 
     def chunks(self, event: EventDocument) -> list[Chunk]:
         available = self.max_bytes - len(event.prefix.encode('utf-8'))
-        return [Chunk(event, part) for part in self.split_text(event.text, available)]
+        return [Chunk(event, part) for part in self.split_text(event.indexed_text, available)]
 
     def bisect(self, chunk: Chunk) -> list[Chunk]:
         """실제 모델에서 context 초과가 난 조각만 더 작게 나눈다."""

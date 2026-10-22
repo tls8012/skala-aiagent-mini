@@ -322,6 +322,7 @@ class GameTools:
             event = EventDocument('query', 'query', round_id, 0, 'query', agent_id, query)
             embedded = self._embed_chunks(self.chunker.chunks(event))
             matches = {}
+            outdated = False
             for start in range(0, len(embedded), self.config.embedding_batch_size):
                 batch = embedded[start:start + self.config.embedding_batch_size]
                 candidate_count = min(limit * self.config.retrieval_candidate_multiplier, count)
@@ -337,6 +338,10 @@ class GameTools:
                                                       (meta or {}).get('event_id')))
                             if parent is None or document is None or meta.get('round_id') != parent['round_id']:
                                 continue
+                            if meta.get('event_key') != document.key:
+                                # 백그라운드 재색인 전의 혼합 원문 벡터는 사용/캐시하지 않는다.
+                                outdated = True
+                                continue
                             unique_events.add(document.key)
                             if document.key not in matches or distance < matches[document.key]['distance']:
                                 metadata = {key: value for key, value in meta.items() if key != 'chunk_index'}
@@ -349,7 +354,8 @@ class GameTools:
                     if len(unique_events) >= limit or candidate_count == count:
                         break
                     candidate_count = min(candidate_count * 2, count)
-            return {'status': 'ready', 'matches': sorted(matches.values(),
+            return {'status': ('unavailable' if error else 'indexing') if outdated else 'ready',
+                    'matches': sorted(matches.values(),
                     key=lambda item: item['distance'])[:limit]}
         except Exception as error:
             return {'status': 'unavailable', 'matches': [], 'error': f'{type(error).__name__}: {error}'}

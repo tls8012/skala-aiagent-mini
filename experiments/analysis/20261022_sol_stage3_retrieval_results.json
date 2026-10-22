@@ -1,0 +1,903 @@
+{
+  "run_id": "20261022T001613-70345d11",
+  "source_run": "experiments/results/20261022T001613-70345d11",
+  "protocol": {
+    "name": "fixed_deal_heads_up",
+    "version": 3,
+    "unit": "completed_round_per_deal_opponent_condition",
+    "deals_per_opponent": 10,
+    "history_seed": 30042,
+    "history_rounds_per_opponent": 20,
+    "history_ids": "deterministic",
+    "history_policy_versions": {
+      "B": "rules-v2-b",
+      "C": "rules-v2-c"
+    },
+    "opponent_policy_versions": {
+      "B": "rules-v2-b",
+      "C": "rules-v2-c"
+    },
+    "opponent_randomness": false,
+    "retrieval": "chroma",
+    "memo_reset_between_trials": true,
+    "evaluates_win_rate": true,
+    "deals": [
+      {
+        "case_id": "s3-B-01",
+        "cards": {
+          "A": {
+            "rank": 10,
+            "suit": "H"
+          },
+          "B": {
+            "rank": 9,
+            "suit": "C"
+          }
+        }
+      },
+      {
+        "case_id": "s3-B-02",
+        "cards": {
+          "A": {
+            "rank": 14,
+            "suit": "H"
+          },
+          "B": {
+            "rank": 2,
+            "suit": "S"
+          }
+        }
+      },
+      {
+        "case_id": "s3-B-03",
+        "cards": {
+          "A": {
+            "rank": 2,
+            "suit": "C"
+          },
+          "B": {
+            "rank": 14,
+            "suit": "H"
+          }
+        }
+      },
+      {
+        "case_id": "s3-B-04",
+        "cards": {
+          "A": {
+            "rank": 13,
+            "suit": "S"
+          },
+          "B": {
+            "rank": 13,
+            "suit": "D"
+          }
+        }
+      },
+      {
+        "case_id": "s3-B-05",
+        "cards": {
+          "A": {
+            "rank": 9,
+            "suit": "S"
+          },
+          "B": {
+            "rank": 10,
+            "suit": "C"
+          }
+        }
+      },
+      {
+        "case_id": "s3-B-06",
+        "cards": {
+          "A": {
+            "rank": 12,
+            "suit": "D"
+          },
+          "B": {
+            "rank": 11,
+            "suit": "H"
+          }
+        }
+      },
+      {
+        "case_id": "s3-B-07",
+        "cards": {
+          "A": {
+            "rank": 11,
+            "suit": "H"
+          },
+          "B": {
+            "rank": 12,
+            "suit": "S"
+          }
+        }
+      },
+      {
+        "case_id": "s3-B-08",
+        "cards": {
+          "A": {
+            "rank": 4,
+            "suit": "C"
+          },
+          "B": {
+            "rank": 3,
+            "suit": "D"
+          }
+        }
+      },
+      {
+        "case_id": "s3-B-09",
+        "cards": {
+          "A": {
+            "rank": 5,
+            "suit": "S"
+          },
+          "B": {
+            "rank": 5,
+            "suit": "H"
+          }
+        }
+      },
+      {
+        "case_id": "s3-B-10",
+        "cards": {
+          "A": {
+            "rank": 6,
+            "suit": "D"
+          },
+          "B": {
+            "rank": 7,
+            "suit": "C"
+          }
+        }
+      },
+      {
+        "case_id": "s3-C-01",
+        "cards": {
+          "A": {
+            "rank": 10,
+            "suit": "H"
+          },
+          "C": {
+            "rank": 9,
+            "suit": "C"
+          }
+        }
+      },
+      {
+        "case_id": "s3-C-02",
+        "cards": {
+          "A": {
+            "rank": 14,
+            "suit": "H"
+          },
+          "C": {
+            "rank": 2,
+            "suit": "S"
+          }
+        }
+      },
+      {
+        "case_id": "s3-C-03",
+        "cards": {
+          "A": {
+            "rank": 2,
+            "suit": "C"
+          },
+          "C": {
+            "rank": 14,
+            "suit": "H"
+          }
+        }
+      },
+      {
+        "case_id": "s3-C-04",
+        "cards": {
+          "A": {
+            "rank": 13,
+            "suit": "S"
+          },
+          "C": {
+            "rank": 13,
+            "suit": "D"
+          }
+        }
+      },
+      {
+        "case_id": "s3-C-05",
+        "cards": {
+          "A": {
+            "rank": 9,
+            "suit": "S"
+          },
+          "C": {
+            "rank": 10,
+            "suit": "C"
+          }
+        }
+      },
+      {
+        "case_id": "s3-C-06",
+        "cards": {
+          "A": {
+            "rank": 12,
+            "suit": "D"
+          },
+          "C": {
+            "rank": 11,
+            "suit": "H"
+          }
+        }
+      },
+      {
+        "case_id": "s3-C-07",
+        "cards": {
+          "A": {
+            "rank": 11,
+            "suit": "H"
+          },
+          "C": {
+            "rank": 12,
+            "suit": "S"
+          }
+        }
+      },
+      {
+        "case_id": "s3-C-08",
+        "cards": {
+          "A": {
+            "rank": 4,
+            "suit": "C"
+          },
+          "C": {
+            "rank": 3,
+            "suit": "D"
+          }
+        }
+      },
+      {
+        "case_id": "s3-C-09",
+        "cards": {
+          "A": {
+            "rank": 5,
+            "suit": "S"
+          },
+          "C": {
+            "rank": 5,
+            "suit": "H"
+          }
+        }
+      },
+      {
+        "case_id": "s3-C-10",
+        "cards": {
+          "A": {
+            "rank": 6,
+            "suit": "D"
+          },
+          "C": {
+            "rank": 7,
+            "suit": "C"
+          }
+        }
+      }
+    ]
+  },
+  "by_opponent": {
+    "B": {
+      "control": {
+        "rounds": 10,
+        "wins": 6,
+        "win_rate": 0.6,
+        "total_chip_delta": 16,
+        "mean_chip_delta": 1.6,
+        "median_chip_delta": 2.0
+      },
+      "search_only": {
+        "rounds": 10,
+        "wins": 5,
+        "win_rate": 0.5,
+        "total_chip_delta": 14,
+        "mean_chip_delta": 1.4,
+        "median_chip_delta": 0.0
+      },
+      "memo_only": {
+        "rounds": 10,
+        "wins": 6,
+        "win_rate": 0.6,
+        "total_chip_delta": 40,
+        "mean_chip_delta": 4,
+        "median_chip_delta": 2.0
+      },
+      "both": {
+        "rounds": 10,
+        "wins": 5,
+        "win_rate": 0.5,
+        "total_chip_delta": 12,
+        "mean_chip_delta": 1.2,
+        "median_chip_delta": 0.0
+      }
+    },
+    "C": {
+      "control": {
+        "rounds": 10,
+        "wins": 6,
+        "win_rate": 0.6,
+        "total_chip_delta": 8,
+        "mean_chip_delta": 0.8,
+        "median_chip_delta": 2.0
+      },
+      "search_only": {
+        "rounds": 10,
+        "wins": 6,
+        "win_rate": 0.6,
+        "total_chip_delta": 5,
+        "mean_chip_delta": 0.5,
+        "median_chip_delta": 2.0
+      },
+      "memo_only": {
+        "rounds": 10,
+        "wins": 6,
+        "win_rate": 0.6,
+        "total_chip_delta": 5,
+        "mean_chip_delta": 0.5,
+        "median_chip_delta": 2.0
+      },
+      "both": {
+        "rounds": 10,
+        "wins": 6,
+        "win_rate": 0.6,
+        "total_chip_delta": 5,
+        "mean_chip_delta": 0.5,
+        "median_chip_delta": 2.0
+      }
+    }
+  },
+  "paired_differences_from_control": {
+    "B": {
+      "control": [
+        {
+          "case_id": "s3-B-01",
+          "chip_delta": 4,
+          "control_chip_delta": 4,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-02",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-03",
+          "chip_delta": -2,
+          "control_chip_delta": -2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-04",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-05",
+          "chip_delta": -4,
+          "control_chip_delta": -4,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-06",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-07",
+          "chip_delta": -2,
+          "control_chip_delta": -2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-08",
+          "chip_delta": 10,
+          "control_chip_delta": 10,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-09",
+          "chip_delta": 10,
+          "control_chip_delta": 10,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-10",
+          "chip_delta": -6,
+          "control_chip_delta": -6,
+          "difference": 0
+        }
+      ],
+      "search_only": [
+        {
+          "case_id": "s3-B-01",
+          "chip_delta": 4,
+          "control_chip_delta": 4,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-02",
+          "chip_delta": -2,
+          "control_chip_delta": 2,
+          "difference": -4
+        },
+        {
+          "case_id": "s3-B-03",
+          "chip_delta": -2,
+          "control_chip_delta": -2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-04",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-05",
+          "chip_delta": -2,
+          "control_chip_delta": -4,
+          "difference": 2
+        },
+        {
+          "case_id": "s3-B-06",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-07",
+          "chip_delta": -2,
+          "control_chip_delta": -2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-08",
+          "chip_delta": 6,
+          "control_chip_delta": 10,
+          "difference": -4
+        },
+        {
+          "case_id": "s3-B-09",
+          "chip_delta": 10,
+          "control_chip_delta": 10,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-10",
+          "chip_delta": -2,
+          "control_chip_delta": -6,
+          "difference": 4
+        }
+      ],
+      "memo_only": [
+        {
+          "case_id": "s3-B-01",
+          "chip_delta": 4,
+          "control_chip_delta": 4,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-02",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-03",
+          "chip_delta": -2,
+          "control_chip_delta": -2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-04",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-05",
+          "chip_delta": -4,
+          "control_chip_delta": -4,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-06",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-07",
+          "chip_delta": -2,
+          "control_chip_delta": -2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-08",
+          "chip_delta": 30,
+          "control_chip_delta": 10,
+          "difference": 20
+        },
+        {
+          "case_id": "s3-B-09",
+          "chip_delta": 14,
+          "control_chip_delta": 10,
+          "difference": 4
+        },
+        {
+          "case_id": "s3-B-10",
+          "chip_delta": -6,
+          "control_chip_delta": -6,
+          "difference": 0
+        }
+      ],
+      "both": [
+        {
+          "case_id": "s3-B-01",
+          "chip_delta": -2,
+          "control_chip_delta": 4,
+          "difference": -6
+        },
+        {
+          "case_id": "s3-B-02",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-03",
+          "chip_delta": -2,
+          "control_chip_delta": -2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-04",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-05",
+          "chip_delta": -2,
+          "control_chip_delta": -4,
+          "difference": 2
+        },
+        {
+          "case_id": "s3-B-06",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-07",
+          "chip_delta": -2,
+          "control_chip_delta": -2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-08",
+          "chip_delta": 10,
+          "control_chip_delta": 10,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-09",
+          "chip_delta": 10,
+          "control_chip_delta": 10,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-B-10",
+          "chip_delta": -6,
+          "control_chip_delta": -6,
+          "difference": 0
+        }
+      ]
+    },
+    "C": {
+      "control": [
+        {
+          "case_id": "s3-C-01",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-02",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-03",
+          "chip_delta": -2,
+          "control_chip_delta": -2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-04",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-05",
+          "chip_delta": -2,
+          "control_chip_delta": -2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-06",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-07",
+          "chip_delta": -2,
+          "control_chip_delta": -2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-08",
+          "chip_delta": 3,
+          "control_chip_delta": 3,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-09",
+          "chip_delta": 6,
+          "control_chip_delta": 6,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-10",
+          "chip_delta": -3,
+          "control_chip_delta": -3,
+          "difference": 0
+        }
+      ],
+      "search_only": [
+        {
+          "case_id": "s3-C-01",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-02",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-03",
+          "chip_delta": -2,
+          "control_chip_delta": -2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-04",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-05",
+          "chip_delta": -2,
+          "control_chip_delta": -2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-06",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-07",
+          "chip_delta": -2,
+          "control_chip_delta": -2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-08",
+          "chip_delta": 3,
+          "control_chip_delta": 3,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-09",
+          "chip_delta": 3,
+          "control_chip_delta": 6,
+          "difference": -3
+        },
+        {
+          "case_id": "s3-C-10",
+          "chip_delta": -3,
+          "control_chip_delta": -3,
+          "difference": 0
+        }
+      ],
+      "memo_only": [
+        {
+          "case_id": "s3-C-01",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-02",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-03",
+          "chip_delta": -2,
+          "control_chip_delta": -2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-04",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-05",
+          "chip_delta": -2,
+          "control_chip_delta": -2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-06",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-07",
+          "chip_delta": -2,
+          "control_chip_delta": -2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-08",
+          "chip_delta": 3,
+          "control_chip_delta": 3,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-09",
+          "chip_delta": 3,
+          "control_chip_delta": 6,
+          "difference": -3
+        },
+        {
+          "case_id": "s3-C-10",
+          "chip_delta": -3,
+          "control_chip_delta": -3,
+          "difference": 0
+        }
+      ],
+      "both": [
+        {
+          "case_id": "s3-C-01",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-02",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-03",
+          "chip_delta": -2,
+          "control_chip_delta": -2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-04",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-05",
+          "chip_delta": -2,
+          "control_chip_delta": -2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-06",
+          "chip_delta": 2,
+          "control_chip_delta": 2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-07",
+          "chip_delta": -2,
+          "control_chip_delta": -2,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-08",
+          "chip_delta": 3,
+          "control_chip_delta": 3,
+          "difference": 0
+        },
+        {
+          "case_id": "s3-C-09",
+          "chip_delta": 3,
+          "control_chip_delta": 6,
+          "difference": -3
+        },
+        {
+          "case_id": "s3-C-10",
+          "chip_delta": -3,
+          "control_chip_delta": -3,
+          "difference": 0
+        }
+      ]
+    }
+  },
+  "retrieval_checks": {
+    "claims": {
+      "calls": 40,
+      "matches": 200,
+      "all_ready": true,
+      "correct_opponent_and_event_type": true,
+      "exact_claim_wording_matches": 200
+    },
+    "betting": {
+      "calls": 62,
+      "matches": 310,
+      "all_ready": true,
+      "correct_opponent_and_event_type": true
+    }
+  },
+  "verification": {
+    "valid_rounds": 80,
+    "engine_payment_reconciled_rounds": 80,
+    "automatic_or_failed_participants": 0,
+    "current_source_hash_matches": {
+      "agents/poker_llm.py": true,
+      "agents/chunker.py": true,
+      "agents/mcp_server.py": true,
+      "agents/prompts/poker_decision.txt": true
+    },
+    "same_inputs_and_history_across_arms": true,
+    "memo_inputs_matched_within_enabled_and_disabled_pairs": true,
+    "human_interpretation_events": 0
+  },
+  "usage": {
+    "calls": 368,
+    "input_tokens": 1081072,
+    "output_tokens": 55233,
+    "tokens": 1136305,
+    "duration_s": 1972.1300658330001
+  },
+  "caveats": [
+    "Ten selected fixed deals per opponent per condition, one evaluation each; not a random sample of games.",
+    "B memo_only gains over control total 24 chips: B-08 adds 20 and B-09 adds 4.",
+    "C differences from control are confined to C-09, minus 3 chips for every information arm.",
+    "Matching claim wording and event type do not establish representative frequency estimates or improved model decisions.",
+    "No human interpretation events occur in this AI-only experiment.",
+    "Formal statistical significance was not tested."
+  ]
+}
